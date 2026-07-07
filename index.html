@@ -284,7 +284,7 @@
 <div class="toolbar">
   <label>RELATÓRIO DE INVESTIGAÇÃO — FOR 005-001</label>
   <select id="sev-select" onchange="setSeverity(this.value)">
-    <option value="grave">🔴 Acidente Grave / Fatal</option>
+    <option value="grave">🔴 Acidente Grave</option>
     <option value="leve">🟠 Acidente Leve</option>
     <option value="incidente">🟢 Incidente / Quase Acidente</option>
   </select>
@@ -307,7 +307,7 @@
 
   <!-- SEVERITY -->
   <div class="severity-band" id="sev-band" onclick="cycleSeverity()">
-    ⚠ ACIDENTE GRAVE / FATAL
+    ⚠ ACIDENTE GRAVE
     <span class="sev-hint">(clique para alternar classificação)</span>
   </div>
 
@@ -328,10 +328,10 @@
     <div class="grid-4" style="margin-bottom:8px;grid-template-columns:repeat(5,1fr)">
       <div class="field">
         <label>Classificação</label>
-        <select>
-          <option>Acidente Grave / Fatal</option>
-          <option>Acidente Leve</option>
-          <option>Incidente / Quase Acidente</option>
+        <select id="class-secao1" onchange="setSeverityByLabel(this.value)">
+          <option value="grave">Acidente Grave</option>
+          <option value="leve">Acidente Leve</option>
+          <option value="incidente">Incidente / Quase Acidente</option>
         </select>
       </div>
       <div class="field">
@@ -370,6 +370,7 @@
           <option>Esmagamento</option>
           <option>Amputação</option>
           <option>Intoxicação</option>
+          <option>Irritação</option>
           <option>Óbito</option>
           <option>Sem lesão</option>
           <option>Outro</option>
@@ -687,7 +688,7 @@
 
 <script>
   const severities = [
-    { cls: '',          band: '⚠ ACIDENTE GRAVE / FATAL', val: 'grave' },
+    { cls: '',          band: '⚠ ACIDENTE GRAVE', val: 'grave' },
     { cls: 'leve',      band: '⚠ ACIDENTE LEVE',          val: 'leve' },
     { cls: 'incidente', band: '⚠ INCIDENTE / QUASE ACIDENTE', val: 'incidente' }
   ];
@@ -706,14 +707,23 @@
   function setSeverity(val) {
     sevIdx = severities.findIndex(s => s.val === val);
     const s = severities[sevIdx];
+    // 1. Faixa de severidade
     const band = document.getElementById('sev-band');
     band.className = 'severity-band ' + s.cls;
     band.innerHTML = s.band + '<span class="sev-hint">(clique para alternar classificação)</span>';
+    // 2. Toolbar
+    document.getElementById('sev-select').value = val;
+    // 3. Select da seção 1
+    const sel1 = document.getElementById('class-secao1');
+    if (sel1) sel1.value = val;
+  }
+
+  function setSeverityByLabel(val) {
+    setSeverity(val);
   }
 
   function cycleSeverity() {
     sevIdx = (sevIdx + 1) % severities.length;
-    document.getElementById('sev-select').value = severities[sevIdx].val;
     setSeverity(severities[sevIdx].val);
   }
 
