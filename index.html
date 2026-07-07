@@ -101,24 +101,34 @@
 
   .field label {
     display: block;
-    font-size: 10px;
+    font-size: 9px;
     font-weight: 700;
     text-transform: uppercase;
-    color: #666;
-    margin-bottom: 3px;
+    letter-spacing: 0.4px;
+    color: #999;
+    margin-bottom: 4px;
   }
   .field .val {
     background: #f5f5f5;
     border-radius: 3px;
     padding: 5px 8px;
-    min-height: 27px;
-    font-size: 13px;
+    min-height: 28px;
+    font-size: 12px;
+    font-family: Arial, sans-serif;
     outline: none;
-    border: 1px solid transparent;
+    border: 1px solid #e0e0e0;
+    width: 100%;
+    color: #1a1a1a;
+    display: block;
   }
   .field .val:focus { border-color: #1a3a5c; background: #eef3f8; }
-  .field select { width: 100%; font-family: Arial, sans-serif; font-size: 12px; padding: 5px 6px; border-radius: 3px; border: 1px solid #ccc; background: #f5f5f5; outline: none; }
-  .field select:focus { border-color: #1a3a5c; }
+  .field input.val { box-sizing: border-box; }
+  .field select {
+    width: 100%; font-family: Arial, sans-serif; font-size: 12px;
+    padding: 5px 8px; border-radius: 3px; border: 1px solid #e0e0e0;
+    background: #f5f5f5; outline: none; color: #1a1a1a; min-height: 28px;
+  }
+  .field select:focus { border-color: #1a3a5c; background: #eef3f8; }
 
   /* ── ENVOLVIDOS ── */
   .envolvidos-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
@@ -291,14 +301,7 @@
       <div class="doc-code">FOR 005-001 — DB Agronegócios — Segurança do Trabalho</div>
     </div>
     <div class="header-meta">
-      Nº do Relatório <input class="editable" type="text" placeholder="001/2025"><br>
-      Data emissão <span id="data-emissao" class="editable" style="border-bottom:1px solid #bbb;padding-bottom:1px;color:#1a1a1a"></span><br>
-      Versão 
-      <select style="background:transparent;color:#1a1a1a;border:none;border-bottom:1px solid #bbb;font-family:Arial,sans-serif;font-size:11px;outline:none;cursor:pointer">
-        <option>Inicial</option>
-        <option>Complementar</option>
-        <option>Final</option>
-      </select>
+      Data emissão <span id="data-emissao" class="editable" style="border-bottom:1px solid #bbb;padding-bottom:1px;color:#1a1a1a"></span>
     </div>
   </div>
 
@@ -311,13 +314,18 @@
   <!-- IDENTIFICAÇÃO -->
   <div class="section">
     <div class="section-title">1. Identificação da Ocorrência</div>
-    <div class="grid-4" style="margin-bottom:8px">
+
+    <!-- Linha 1: dados básicos -->
+    <div class="grid-4" style="margin-bottom:8px;grid-template-columns:repeat(5,1fr)">
+      <div class="field"><label>Nº do Relatório</label><input type="text" class="val" placeholder="Ex: REL-001/2026"></div>
       <div class="field"><label>Data</label><div class="val" contenteditable="true"></div></div>
       <div class="field"><label>Hora</label><div class="val" contenteditable="true"></div></div>
-      <div class="field"><label>Unidade / Complexo</label><select><option value="">— selecione —</option><option>Escritório Central</option><option>Estacionamento/Logística</option><option>Faz. Bom Retiro</option><option>Faz. Chuá</option><option>Faz. Saco São Francisco</option><option>Faz. Saco Tapera</option><option>Faz. São João</option><option>Granja Bom Retiro</option><option>Granja Saco São Francisco</option><option>Granja São João</option><option>Granjas Chuá</option></select></div>
+      <div class="field"><label>Unidade / Complexo</label><div class="val" contenteditable="true"></div></div>
       <div class="field"><label>Setor</label><div class="val" contenteditable="true"></div></div>
     </div>
-    <div class="grid-4" style="margin-bottom:8px">
+
+    <!-- Linha 2: classificação -->
+    <div class="grid-4" style="margin-bottom:8px;grid-template-columns:repeat(5,1fr)">
       <div class="field">
         <label>Classificação</label>
         <select>
@@ -334,7 +342,6 @@
           <option>Baixo</option>
         </select>
       </div>
-      <div class="field"><label>Dias perdidos</label><div class="val" contenteditable="true"></div></div>
       <div class="field">
         <label>Potencial de agravamento</label>
         <select>
@@ -343,10 +350,12 @@
           <option>Baixo</option>
         </select>
       </div>
-    </div>
-    <div class="grid-4" style="margin-bottom:8px">
+      <div class="field"><label>Dias perdidos</label><div class="val" contenteditable="true"></div></div>
       <div class="field"><label>Nº CAT</label><div class="val" contenteditable="true"></div></div>
-      <div class="field"><label>Acidentes anteriores</label><div class="val" contenteditable="true"></div></div>
+    </div>
+
+    <!-- Linha 3: lesão e contato -->
+    <div class="grid-4" style="margin-bottom:0;grid-template-columns:repeat(5,1fr)">
       <div class="field">
         <label>Tipo de lesão</label>
         <select>
@@ -386,8 +395,6 @@
           <option>Múltiplas regiões</option>
         </select>
       </div>
-    </div>
-    <div class="grid-4">
       <div class="field">
         <label>Categoria</label>
         <select>
@@ -415,6 +422,7 @@
           <option>Outro</option>
         </select>
       </div>
+      <div class="field"><label>Acidentes anteriores</label><div class="val" contenteditable="true"></div></div>
     </div>
   </div>
 
