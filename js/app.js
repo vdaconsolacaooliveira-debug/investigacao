@@ -58,12 +58,13 @@
   function param(nome) { return new URLSearchParams(location.search).get(nome); }
 
   function traduzErro(e) {
-    const msg = (e && (e.message || e.error_description || e.msg)) || String(e || 'Erro desconhecido');
+    const msg = [(e && (e.message || e.error_description || e.msg)) || String(e || 'Erro desconhecido'), e && e.code].filter(Boolean).join(' ');
     const mapa = [
       [/Invalid login credentials/i, 'E-mail ou senha incorretos.'],
       [/Email not confirmed/i, 'Seu e-mail ainda não foi confirmado. Abra o link enviado para o seu e-mail.'],
       [/User already registered/i, 'Este e-mail já tem cadastro. Use "Entrar" ou "Esqueci a senha".'],
       [/Password should be at least/i, 'A senha precisa ter pelo menos 6 caracteres.'],
+      [/email rate limit|over_email_send_rate_limit/i, 'O sistema atingiu o limite de e-mails por hora. Tente de novo mais tarde ou avise o Administrador.'],
       [/rate limit|too many/i, 'Muitas tentativas seguidas. Aguarde alguns minutos e tente de novo.'],
       [/row-level security|permission denied/i, 'Você não tem permissão para esta ação.'],
       [/Failed to fetch|NetworkError/i, 'Sem conexão com o servidor. Verifique a internet.'],
