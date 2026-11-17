@@ -257,8 +257,23 @@ async function mostrarMenu(perfil) {
     tr.onclick = () => location.href = `${SST.TIPOS[tr.dataset.tipo].pagina}?id=${tr.dataset.id}`);
 }
 
+// ── Retorno dos links de e-mail (confirmação / troca de senha) ───
+function avisoDoLink() {
+  const h = new URLSearchParams(location.hash.replace(/^#/, ''));
+  const q = new URLSearchParams(location.search);
+  const codigo = h.get('error_code') || q.get('error_code');
+  if (!codigo && !h.get('error') && !q.get('error')) return null;
+  history.replaceState(null, '', location.pathname);
+  if (codigo === 'otp_expired')
+    return { tipo: 'info', texto: 'Este link já foi usado ou venceu. Se você já confirmou o e-mail, é só entrar com seu e-mail e senha.' };
+  return { tipo: 'erro', texto: 'Não foi possível validar o link do e-mail. Tente entrar com seu e-mail e senha.' };
+}
+const emailConfirmado = /type=(signup|email)/.test(location.hash);
+const avisoInicial = avisoDoLink();
+
 // ── Início ───────────────────────────────────────────────────────
 async function iniciar() {
+  if (avisoInicial && !(await SST.sessao())) return mostrarAcesso('entrar', avisoInicial);
   const s = await SST.sessao();
   if (modoRecuperacao && s) return mostrarAcesso('novasenha');
   if (!s) return mostrarAcesso('entrar');
@@ -269,6 +284,7 @@ async function iniciar() {
   return mostrarMenu(perfil);
 }
 
+if (emailConfirmado) setTimeout(() => toast('E-mail confirmado.', 'ok'), 600);
 sb.auth.onAuthStateChange(evento => {
   if (evento === 'PASSWORD_RECOVERY') { modoRecuperacao = true; mostrarAcesso('novasenha'); }
 });
