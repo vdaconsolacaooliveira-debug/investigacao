@@ -16,6 +16,7 @@ Registro de investigações de acidentes (NIAT, FOR 005-001) e análises dos 5 P
 
 - **Banco:** Supabase (plano gratuito), projeto `sst-db`, região São Paulo.
 - **Numeração:** `NIAT-FSF-001/2026` e `5PQ-FSF-001/2026` — contagem própria por tipo, unidade e ano. O número é gerado ao salvar e não muda mais.
+- **NIAT → 5 Porquês:** na NIAT, o botão "Gerar 5 Porquês" cria o relatório filho já ligado à NIAT (pai), com unidade, data, envolvido, descrição e classificação. Cada NIAT tem no máximo um 5 Porquês, e a ligação não pode ser trocada depois.
 - **Acesso:** o primeiro cadastro vira Administrador. Os demais entram pendentes até o Administrador aprovar.
   - Administrador: vê e edita todos os relatórios, exclui relatórios, gerencia usuários.
   - Padrão: vê e edita só os relatórios que criou.

@@ -296,4 +296,82 @@ revoke execute on function public.proteger_perfil() from public, anon, authentic
 revoke all on public.contadores from anon, authenticated;
 revoke all on public.lista_relatorios from anon;
 
+-- ---------------------------------------------------------------------
+-- 5. VÍNCULO PAI (NIAT) → FILHO (5 PORQUÊS)
+--    Uma NIAT pode gerar no máximo um 5 Porquês. O filho herda a unidade
+--    da NIAT e, depois de ligado, o vínculo não muda mais.
+-- ---------------------------------------------------------------------
+create unique index if not exists relatorios_um_5pq_por_niat
+  on public.relatorios (niat_id) where tipo = '5pq' and niat_id is not null;
+
+create or replace function privado.validar_pai(pai uuid)
+returns text language plpgsql stable security definer set search_path = public as $$
+declare
+  un text;
+begin
+  select r.unidade into un from public.relatorios r
+   where r.id = pai and r.tipo = 'niat'
+     and (r.criado_por = auth.uid() or privado.eh_admin());
+  if un is null then
+    raise exception 'NIAT de origem não encontrada ou sem permissão.';
+  end if;
+  return un;
+end $$;
+revoke execute on function privado.validar_pai(uuid) from public, anon;
+grant execute on function privado.validar_pai(uuid) to authenticated;
+
+create or replace function public.numerar_relatorio()
+returns trigger language plpgsql security definer set search_path = public as $$
+declare
+  seq int;
+  base_ano int;
+begin
+  if new.tipo = 'niat' then
+    new.niat_id := null;
+  elsif new.niat_id is not null then
+    new.unidade := privado.validar_pai(new.niat_id);
+  end if;
+  base_ano := extract(year from coalesce(new.data_ocorrencia, current_date))::int;
+  insert into public.contadores as c (tipo, unidade, ano, ultimo)
+  values (new.tipo, new.unidade, base_ano, 1)
+  on conflict (tipo, unidade, ano) do update set ultimo = c.ultimo + 1
+  returning ultimo into seq;
+  new.ano       := base_ano;
+  new.sequencia := seq;
+  new.numero    := case new.tipo when 'niat' then 'NIAT' else '5PQ' end
+                   || '-' || new.unidade || '-' || lpad(seq::text, 3, '0') || '/' || base_ano;
+  new.criado_por := coalesce(auth.uid(), new.criado_por);
+  new.criado_em  := now();
+  new.atualizado_por := new.criado_por;
+  new.atualizado_em  := now();
+  return new;
+end $$;
+
+create or replace function public.travar_relatorio()
+returns trigger language plpgsql security definer set search_path = public as $$
+begin
+  new.id         := old.id;
+  new.tipo       := old.tipo;
+  new.numero     := old.numero;
+  new.sequencia  := old.sequencia;
+  new.ano        := old.ano;
+  new.unidade    := old.unidade;
+  new.criado_por := old.criado_por;
+  new.criado_em  := old.criado_em;
+  if old.tipo = 'niat' then
+    new.niat_id := null;
+  elsif old.niat_id is not null then
+    new.niat_id := old.niat_id;
+  elsif new.niat_id is not null then
+    if privado.validar_pai(new.niat_id) <> old.unidade then
+      raise exception 'A NIAT escolhida é de outra unidade.';
+    end if;
+  end if;
+  new.atualizado_por := auth.uid();
+  new.atualizado_em  := now();
+  return new;
+end $$;
+revoke execute on function public.numerar_relatorio() from public, anon, authenticated;
+revoke execute on function public.travar_relatorio() from public, anon, authenticated;
+
 -- Fim do script

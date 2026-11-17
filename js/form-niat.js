@@ -173,7 +173,7 @@ function mostrarNumero() {
     document.getElementById('numero').value = registro.numero;
     document.getElementById('unidade').disabled = true;
     document.getElementById('unidade').title = 'A unidade faz parte do número e não pode ser trocada depois de salvar.';
-    document.getElementById('b-5pq').hidden = false;
+    atualizarFilho();
     document.title = registro.numero + ' — NIAT';
   }
 }
@@ -192,8 +192,8 @@ async function salvar() {
   const b = document.getElementById('b-salvar');
   const dados = coletar();
   const c = dados.campos;
-  if (!c.unidade) { toast('Escolha a Unidade / Complexo antes de salvar. Ela faz parte do número do relatório.', 'erro', 5000); document.getElementById('unidade').focus(); return; }
-  if (c.data && !SST.dataISO(c.data)) { toast('A data da ocorrência está inválida. Use DD/MM/AAAA.', 'erro'); return; }
+  if (!c.unidade) { toast('Escolha a Unidade / Complexo antes de salvar. Ela faz parte do número do relatório.', 'erro', 5000); document.getElementById('unidade').focus(); return false; }
+  if (c.data && !SST.dataISO(c.data)) { toast('A data da ocorrência está inválida. Use DD/MM/AAAA.', 'erro'); return false; }
   b.disabled = true; b.textContent = '⏳ Salvando…';
   try {
     const linha = {
@@ -219,8 +219,10 @@ async function salvar() {
     desenharFotos();
     marcarLimpo('✔ Salvo às ' + new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }));
     toast(`Relatório ${registro.numero} salvo.`, 'ok');
+    return true;
   } catch (e) {
     toast('Não foi possível salvar: ' + traduzErro(e), 'erro', 6000);
+    return false;
   } finally {
     b.disabled = false; b.textContent = '💾 Salvar';
   }
@@ -250,6 +252,60 @@ async function carregar(id) {
   return true;
 }
 
+
+// ── Relatório filho: 5 Porquês ────────────────────────────────────
+let filho = null;   // { id, numero } do 5 Porquês ligado a esta NIAT
+async function atualizarFilho() {
+  const b = document.getElementById('b-5pq');
+  b.hidden = false;
+  if (!registro.id) { filho = null; b.textContent = '➕ Gerar 5 Porquês'; document.getElementById('filho-cab').hidden = true; return; }
+  const { data } = await sb.from('relatorios').select('id,numero').eq('tipo', '5pq').eq('niat_id', registro.id).limit(1);
+  filho = data && data[0] ? data[0] : null;
+  b.textContent = filho ? '❓ Ver 5 Porquês' : '➕ Gerar 5 Porquês';
+  b.title = filho ? `Abrir ${filho.numero} (relatório filho desta NIAT)` : 'Criar a análise dos 5 Porquês como relatório filho desta NIAT';
+  const cab = document.getElementById('filho-cab');
+  cab.hidden = !filho;
+  if (filho) cab.querySelector('b').textContent = filho.numero;
+}
+
+async function gerarOuAbrir5pq() {
+  const b = document.getElementById('b-5pq');
+  // a NIAT precisa estar salva para ser o relatório pai
+  if (!registro.id || SST.alteracoes.sujo) {
+    if (!registro.id && !confirm('Para gerar o 5 Porquês, a NIAT precisa ser salva primeiro. Salvar agora?')) return;
+    if (!(await salvar())) return;
+  }
+  await atualizarFilho();
+  if (filho) { location.href = `cincoporques.html?id=${filho.id}`; return; }
+  if (!confirm(`Gerar a análise dos 5 Porquês ligada à ${registro.numero}?\n\nEla fica registrada como relatório filho desta NIAT.`)) return;
+
+  b.disabled = true; b.textContent = '⏳ Gerando…';
+  try {
+    const c = SST.lerCampos(document.getElementById('form'));
+    const campos = {
+      data_ocorrencia: c.data || '', unidade: c.unidade, envolvido: c.e1_nome || '', funcao: c.e1_funcao || '',
+      fenomeno: c.descricao || '', classificacao: c.classificacao, data_emissao: SST.hojeBR(),
+      tecnico: c.tecnico || '', gerente: c.gerente || ''
+    };
+    const { data, error } = await sb.from('relatorios').insert({
+      tipo: '5pq', unidade: c.unidade, niat_id: registro.id,
+      classificacao: c.classificacao || null, data_ocorrencia: SST.dataISO(c.data),
+      envolvido: campos.envolvido, resumo: (c.w_oque || c.descricao || '').slice(0, 300),
+      dados: { campos, cadeias: [[{ problema: c.w_oque || '', pq: [], acao: '', resp: '', prazo: '' }]] }
+    }).select('id,numero').single();
+    if (error) {
+      // outro usuário (ou outra aba) já gerou: abre o existente
+      if (error.code === '23505') { await atualizarFilho(); if (filho) { location.href = `cincoporques.html?id=${filho.id}`; return; } }
+      throw error;
+    }
+    toast(`5 Porquês ${data.numero} criado e ligado à ${registro.numero}.`, 'ok');
+    location.href = `cincoporques.html?id=${data.id}`;
+  } catch (e) {
+    toast('Não foi possível gerar o 5 Porquês: ' + traduzErro(e), 'erro', 6000);
+    b.disabled = false; atualizarFilho();
+  }
+}
+
 // ── Início ────────────────────────────────────────────────────────
 (async function iniciar() {
   let perfil;
@@ -267,11 +323,8 @@ async function carregar(id) {
   document.addEventListener('keydown', e => {
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') { e.preventDefault(); salvar(); }
   });
-  document.getElementById('b-5pq').onclick = async () => {
-    if (SST.alteracoes.sujo) await salvar();
-    const { data } = await sb.from('relatorios').select('id').eq('tipo', '5pq').eq('niat_id', registro.id).limit(1);
-    location.href = data && data.length ? `cincoporques.html?id=${data[0].id}` : `cincoporques.html?niat=${registro.id}`;
-  };
+  document.getElementById('b-5pq').onclick = gerarOuAbrir5pq;
+
 
   const id = SST.param('id');
   try {
@@ -288,6 +341,7 @@ async function carregar(id) {
       setSeverity('grave');
       carregandoForm = false;
       marcarLimpo('Novo relatório — o número é gerado ao salvar');
+      atualizarFilho();
     }
   } catch (e) {
     toast(traduzErro(e), 'erro', 6000);

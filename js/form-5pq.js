@@ -184,23 +184,36 @@ function mascaraData(el) {
 
 // ── Vínculo com NIAT ──────────────────────────────────────────────
 let niats = [];
+let paiTravado = false;   // true quando o 5 Porquês já nasceu (ou foi salvo) como filho de uma NIAT
 async function carregarNiats(selecionado) {
-  const { data, error } = await sb.from('lista_relatorios')
-    .select('id,numero,envolvido,unidade,data_ocorrencia')
-    .eq('tipo', 'niat').order('criado_em', { ascending: false }).limit(500);
+  const [{ data, error }, { data: filhos }] = await Promise.all([
+    sb.from('lista_relatorios').select('id,numero,envolvido,unidade,data_ocorrencia')
+      .eq('tipo', 'niat').order('criado_em', { ascending: false }).limit(1000),
+    sb.from('relatorios').select('niat_id').eq('tipo', '5pq').not('niat_id', 'is', null)
+  ]);
   if (error) throw error;
-  niats = data;
+  const comFilho = new Set((filhos || []).map(f => f.niat_id));
+  // Só aparecem NIATs sem 5 Porquês (mais a NIAT pai deste relatório)
+  niats = data.filter(r => r.id === selecionado || !comFilho.has(r.id));
   const sel = document.getElementById('niat-vinculo');
-  sel.innerHTML = '<option value="">— sem vínculo —</option>' + data.map(r =>
+  sel.innerHTML = '<option value="">— sem vínculo —</option>' + niats.map(r =>
     `<option value="${r.id}">${esc(r.numero)}${r.envolvido ? ' · ' + esc(r.envolvido) : ''}</option>`).join('');
   if (selecionado) sel.value = selecionado;
   atualizarBotaoNiat();
 }
 function atualizarBotaoNiat() {
-  const v = document.getElementById('niat-vinculo').value;
+  const sel = document.getElementById('niat-vinculo');
+  const v = sel.value;
   const b = document.getElementById('b-niat');
   b.hidden = !v;
+  b.textContent = paiTravado ? '📝 Abrir NIAT (pai)' : '📝 Abrir NIAT';
   b.onclick = () => { location.href = `niat.html?id=${v}`; };
+  sel.disabled = paiTravado;
+  sel.title = paiTravado ? 'Relatório filho: a ligação com a NIAT pai não pode ser trocada.' : 'NIAT que deu origem a esta análise';
+  const cab = document.getElementById('pai-cab');
+  const op = sel.selectedOptions[0];
+  cab.hidden = !(paiTravado && v);
+  if (paiTravado && v && op) cab.querySelector('b').textContent = op.text.split(' · ')[0];
 }
 // Ao escolher a NIAT, traz os dados dela para os campos vazios
 async function puxarDaNiat(id, sobrescrever) {
@@ -221,6 +234,10 @@ async function puxarDaNiat(id, sobrescrever) {
   SST.escreverCampos(form, novo);
   const un = document.getElementById('unidade');
   if (!registro.id && data.unidade) un.value = data.unidade;
+  else if (registro.id && data.unidade !== un.value) {
+    toast('Essa NIAT é de outra unidade. Escolha uma NIAT da mesma unidade deste relatório.', 'erro', 6000);
+    document.getElementById('niat-vinculo').value = ''; atualizarBotaoNiat(); return;
+  }
   if (data.classificacao) setSeverity(data.classificacao);
   // Problema da cadeia 01 = O quê da NIAT, se estiver vazio
   const prob = document.querySelector('[data-c=problema]');
@@ -272,15 +289,17 @@ async function salvar() {
   try {
     if (!registro.id) {
       const { data, error } = await sb.from('relatorios')
-        .insert({ ...linha, tipo: '5pq', unidade: campos.unidade }).select('id,numero').single();
+        .insert({ ...linha, tipo: '5pq', unidade: campos.unidade }).select('id,numero,unidade').single();
       if (error) throw error;
-      registro = data;
+      registro = { id: data.id, numero: data.numero };
+      document.getElementById('unidade').value = data.unidade;
       history.replaceState(null, '', `cincoporques.html?id=${data.id}`);
       mostrarNumero();
     } else {
       const { error } = await sb.from('relatorios').update(linha).eq('id', registro.id);
       if (error) throw error;
     }
+    if (linha.niat_id && !paiTravado) { paiTravado = true; atualizarBotaoNiat(); }
     marcarLimpo('✔ Salvo às ' + new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }));
     toast(`Relatório ${registro.numero} salvo.`, 'ok');
   } catch (e) {
@@ -303,6 +322,7 @@ async function carregar(id) {
   cadeiaCount = 0;
   (d.cadeias && d.cadeias.length ? d.cadeias : [[{}]]).forEach(linhas => novaCadeia(linhas));
   document.getElementById('situacao').value = data.situacao;
+  paiTravado = !!data.niat_id;
   await carregarNiats(data.niat_id);
   carregandoForm = false;
   mostrarNumero();
@@ -345,8 +365,10 @@ async function carregar(id) {
       novaCadeia([{}]);
       setSeverity('grave');
       const niat = SST.param('niat');
+      paiTravado = !!niat;
       await carregarNiats(niat);
       if (niat) await puxarDaNiat(niat, true);
+      if (niat) document.getElementById('unidade').disabled = true;
       carregandoForm = false;
       marcarLimpo(niat ? 'Dados trazidos da NIAT — revise e salve' : 'Novo relatório — o número é gerado ao salvar');
       if (niat) SST.alteracoes.sujo = true;

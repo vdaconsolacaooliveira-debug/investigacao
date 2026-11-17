@@ -104,7 +104,7 @@ function desenhar() {
   const admin = perfil.papel === 'admin';
   $('corpo').innerHTML = l.map(r => `
     <tr data-id="${r.id}" data-tipo="${r.tipo}">
-      <td class="num">${esc(r.numero)}${r.niat_numero ? `<span class="sub">↳ ${esc(r.niat_numero)}</span>` : ''}</td>
+      <td class="num">${esc(r.numero)}${r.niat_numero ? `<span class="sub" title="Relatório pai">↑ pai: ${esc(r.niat_numero)}</span>` : ''}${r._filho ? `<span class="sub" title="Relatório filho">↳ filho: ${esc(r._filho)}</span>` : ''}</td>
       <td><span class="etiqueta ${r.tipo === 'niat' ? 'niat' : 'pq'}">${TIPOS[r.tipo].curto}</span></td>
       <td>${esc(r.unidade_nome)}</td>
       <td>${SST.dataBR(r.data_ocorrencia) || '—'}</td>
@@ -166,6 +166,9 @@ function exportarCSV() {
     numero_ord: `${r.ano}-${r.tipo}-${r.unidade}-${String(r.sequencia).padStart(5, '0')}`,
     _texto: normal([r.numero, r.niat_numero, r.envolvido, r.resumo, r.unidade_nome, r.unidade, r.autor, TIPOS[r.tipo].curto].join(' '))
   }));
+  const filhos = {};
+  todos.forEach(r => { if (r.niat_id) filhos[r.niat_id] = r.numero; });
+  todos.forEach(r => { if (filhos[r.id]) { r._filho = filhos[r.id]; r._texto += ' ' + normal(r._filho); } });
   ordem = { campo: 'atualizado_em', desc: true };
 
   const anos = [...new Set(todos.map(r => r.ano))].sort((a, b) => b - a);
