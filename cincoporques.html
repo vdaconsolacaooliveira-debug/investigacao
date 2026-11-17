@@ -131,6 +131,7 @@ body { font-family: Arial, sans-serif; background: #e8e8e8; color: #1a1a1a; padd
 .col-head.w-acao  { width: 130px; background: #b8870a; }
 .col-head.w-resp  { width: 100px; background: #8a6510; }
 .col-head.w-prazo { width: 80px;  background: #6a4e0e; }
+.col-head.w-status { width: 124px; background: #4a4a4a; }
 
 /* Linha de dados */
 .grade-linha {
@@ -166,6 +167,12 @@ body { font-family: Arial, sans-serif; background: #e8e8e8; color: #1a1a1a; padd
 .mcell.w-acao  { width: 130px; }
 .mcell.w-resp  { width: 100px; }
 .mcell.w-prazo { width: 80px;  }
+.mcell.w-status { width: 124px; padding: 4px; display: flex; flex-direction: column; justify-content: center; gap: 2px; }
+.mcell.w-status select { width: 100%; border: none; background: transparent; font-size: 11px; font-family: Arial, sans-serif; outline: none; cursor: pointer; }
+.mcell.w-status .concl { font-size: 9px; color: #2e7d32; }
+.grade-linha.st-concluida .mcell.w-status { background: #f1f9f1; border-color: #c8e6c9; }
+.grade-linha.st-atrasada .mcell.w-prazo { color: #d03b3b; font-weight: bold; border-color: #f2b8b8; }
+.grade-linha.st-cancelada .mcell.w-acao { text-decoration: line-through; color: #8a8f96; }
 
 /* Célula oculta (problema em linhas extras — não renderizada) */
 

@@ -12,6 +12,7 @@ Registro de investigações de acidentes (NIAT, FOR 005-001) e análises dos 5 P
 | `niat.html` | Formulário NIAT (FOR 005-001) |
 | `cincoporques.html` | Formulário 5 Porquês (FOR 005-002), ligado a uma NIAT |
 | `relatorios.html` | Lista com pesquisa, filtros e exportação CSV |
+| `painel.html` | Painel de acompanhamento: indicadores, gráficos, situação por técnico, por relatório e por executor, lista de ações com status, relatório em PDF |
 | `usuarios.html` | Aprovação e gestão de usuários (só Administrador) |
 | `historico.html` | Histórico de alterações: quem alterou o quê e quando (só Administrador) |
 | `configuracoes.html` | Edição da lista do Diagrama de Ishikawa: grupos e itens (só Administrador) |
@@ -22,6 +23,7 @@ Registro de investigações de acidentes (NIAT, FOR 005-001) e análises dos 5 P
 - **Lista do Ishikawa:** fica no banco (tabelas `ishikawa_grupos` e `ishikawa_itens`). Só o Administrador altera. Cada relatório guarda o texto do que foi marcado, então mudanças na lista não alteram relatórios já salvos — itens que saíram da lista aparecem em itálico no relatório antigo.
 - **Responsável:** quem vê e edita o relatório. O Administrador pode criar uma NIAT ou um 5 Porquês e escolher o responsável; o 5 Porquês filho sempre acompanha o responsável da NIAT pai.
 - **Histórico:** o banco registra automaticamente (tabela `auditoria`) toda criação, alteração e exclusão de relatórios, usuários, lista do Ishikawa e unidades, campo a campo, com antes → depois. Ninguém consegue gravar ou apagar o histórico pela tela; só o Administrador consulta.
+- **Ações:** cada ação (plano de ação da NIAT e ações das cadeias do 5 Porquês) tem prazo e status — Pendente, Em andamento, Concluída ou Cancelada. A ação fica **Atrasada** automaticamente quando o prazo passa sem conclusão. A data de conclusão é registrada sozinha.
 - **Acesso:** o primeiro cadastro vira Administrador. Os demais entram pendentes até o Administrador aprovar.
   - Administrador: vê e edita todos os relatórios, exclui relatórios, gerencia usuários.
   - Padrão: vê e edita só os relatórios dos quais é responsável (os que criou e os que o Administrador designou para ele).

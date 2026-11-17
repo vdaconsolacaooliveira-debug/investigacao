@@ -123,7 +123,8 @@
       ['inicio', 'index.html', '🏠', 'Início'],
       ['niat', 'niat.html', '📝', 'Nova NIAT'],
       ['5pq', 'cincoporques.html', '❓', 'Novo 5 Porquês'],
-      ['lista', 'relatorios.html', '📂', 'Relatórios']
+      ['lista', 'relatorios.html', '📂', 'Relatórios'],
+      ['painel', 'painel.html', '📊', 'Painel']
     ];
     if (admin) links.push(['usuarios', 'usuarios.html', '👥', 'Usuários'], ['config', 'configuracoes.html', '⚙️', 'Configurações'], ['historico', 'historico.html', '🕘', 'Histórico']);
     el.innerHTML = `
@@ -171,6 +172,38 @@
     const l = await unidades();
     const u = l.find(x => x.sigla === nomeOuSigla || x.nome.toLowerCase() === String(nomeOuSigla).toLowerCase());
     return u ? u.sigla : '';
+  }
+
+  // ── Ações (plano de ação da NIAT e ações das cadeias do 5 Porquês) ─
+  const STATUS_ACAO = {
+    pendente:  { rotulo: 'Pendente',     ic: '⏳', cor: '#eda100' },
+    andamento: { rotulo: 'Em andamento', ic: '🔄', cor: '#2a78d6' },
+    concluida: { rotulo: 'Concluída',    ic: '✅', cor: '#0ca30c' },
+    cancelada: { rotulo: 'Cancelada',    ic: '⛔', cor: '#9aa5b1' },
+    atrasada:  { rotulo: 'Atrasada',     ic: '⚠️', cor: '#d03b3b' }   // calculado, não se escolhe
+  };
+  function hojeISO() {
+    const d = new Date(), p = n => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+  }
+  // Situação real da ação: atrasada quando o prazo passou e ela não foi concluída/cancelada
+  function situacaoAcao(a) {
+    const st = a.status || 'pendente';
+    if (st === 'concluida' || st === 'cancelada') return st;
+    const prazo = dataISO(a.quando || a.prazo);
+    if (prazo && prazo < hojeISO()) return 'atrasada';
+    return st;
+  }
+  function novoId() { return (crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2)); }
+  function opcoesStatus(valor) {
+    return ['pendente', 'andamento', 'concluida', 'cancelada'].map(k =>
+      `<option value="${k}" ${k === (valor || 'pendente') ? 'selected' : ''}>${STATUS_ACAO[k].ic} ${STATUS_ACAO[k].rotulo}</option>`).join('');
+  }
+  // Mantém a data de conclusão coerente com o status
+  function ajustarConclusao(a) {
+    if (a.status === 'concluida') { if (!a.concluida_em) a.concluida_em = hojeISO(); }
+    else delete a.concluida_em;
+    return a;
   }
 
   // ── Catálogo do Ishikawa (grupos e itens ativos, em ordem) ────────
@@ -267,6 +300,6 @@
   window.SST = {
     sb, CLASSIF, TIPOS, esc, hojeBR, dataISO, dataBR, dataHoraBR, iniciais, primeiroNome, param,
     traduzErro, toast, sessao, perfilAtual, exigirLogin, sair, barra, unidades, preencherUnidades,
-    siglaDe, catalogoIshikawa, usuariosAtivos, seletorResponsavel, comprimirImagem, urlsFotos, lerCampos, escreverCampos, alteracoes
+    siglaDe, STATUS_ACAO, hojeISO, situacaoAcao, novoId, opcoesStatus, ajustarConclusao, catalogoIshikawa, usuariosAtivos, seletorResponsavel, comprimirImagem, urlsFotos, lerCampos, escreverCampos, alteracoes
   };
 })();

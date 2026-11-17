@@ -25,16 +25,19 @@ function setSeverity(val) {
 function setSeverityByLabel(val) { setSeverity(val); }
 function cycleSeverity() { setSeverity(severities[(sevIdx + 1) % severities.length].val); }
 
-// ── Plano de ação ─────────────────────────────────────────────────
+// ── Plano de ação (cada ação tem id, prazo e status) ──────────────
 let rowCount = 0;
 function addRow(acao = {}) {
   const tbody = document.getElementById('action-tbody');
   const tr = document.createElement('tr');
   const rn = rowCount++;
+  tr.dataset.id = acao.id || SST.novoId();
+  if (acao.concluida_em) tr.dataset.concluida = acao.concluida_em;
   tr.innerHTML = `
     <td><div class="cell-val" contenteditable="true" data-a="oque"></div></td>
     <td><div class="cell-val" contenteditable="true" data-a="quem"></div></td>
-    <td><div class="cell-val" contenteditable="true" data-a="quando"></div></td>
+    <td><input class="cell-in" data-a="quando" placeholder="DD/MM/AAAA" maxlength="13"></td>
+    <td><select class="cell-status" data-a="status">${SST.opcoesStatus(acao.status)}</select><span class="concl"></span></td>
     <td><div style="display:flex;gap:12px;padding:6px 8px;align-items:center;font-size:12px">
       <label style="display:flex;align-items:center;gap:4px;cursor:pointer"><input type="radio" name="rep${rn}" value="Sim"> Sim</label>
       <label style="display:flex;align-items:center;gap:4px;cursor:pointer"><input type="radio" name="rep${rn}" value="Não"> Não</label>
@@ -42,23 +45,47 @@ function addRow(acao = {}) {
     <td class="col-x"><button type="button" class="btn-x" title="Remover linha">✕</button></td>`;
   tr.querySelector('[data-a=oque]').textContent = acao.oque || '';
   tr.querySelector('[data-a=quem]').textContent = acao.quem || '';
-  tr.querySelector('[data-a=quando]').textContent = acao.quando || '';
+  const q = tr.querySelector('[data-a=quando]');
+  q.value = acao.quando || '';
+  q.addEventListener('input', function () {
+    if (/[a-z]/i.test(this.value)) return;   // texto antigo (ex.: "imediatamente") fica como está
+    let v = this.value.replace(/\D/g, '').slice(0, 8);
+    if (v.length >= 5) v = v.slice(0, 2) + '/' + v.slice(2, 4) + '/' + v.slice(4);
+    else if (v.length >= 3) v = v.slice(0, 2) + '/' + v.slice(2);
+    this.value = v;
+  });
   tr.querySelectorAll('input[type=radio]').forEach(r => r.checked = (r.value === acao.replicar));
+  const st = tr.querySelector('[data-a=status]');
+  const atualizar = () => {
+    const a = SST.ajustarConclusao({ status: st.value, concluida_em: tr.dataset.concluida, quando: q.value });
+    if (a.concluida_em) tr.dataset.concluida = a.concluida_em; else delete tr.dataset.concluida;
+    tr.className = 'st-' + SST.situacaoAcao(a);
+    tr.querySelector('.concl').textContent = a.concluida_em ? `concluída em ${SST.dataBR(a.concluida_em)}` : '';
+  };
+  st.addEventListener('change', atualizar);
+  q.addEventListener('change', atualizar);
+  atualizar();
   tr.querySelector('.btn-x').onclick = () => {
     const temTexto = [...tr.querySelectorAll('.cell-val')].some(c => c.innerText.trim());
     if (temTexto && !confirm('Remover esta ação do plano?')) return;
     tr.remove(); marcarSujo();
   };
   tbody.appendChild(tr);
-  if (acao !== undefined && arguments.length === 0) marcarSujo();
+  if (arguments.length === 0) marcarSujo();
 }
 function lerAcoes() {
-  return [...document.querySelectorAll('#action-tbody tr')].map(tr => ({
-    oque: tr.querySelector('[data-a=oque]').innerText.trim(),
-    quem: tr.querySelector('[data-a=quem]').innerText.trim(),
-    quando: tr.querySelector('[data-a=quando]').innerText.trim(),
-    replicar: (tr.querySelector('input[type=radio]:checked') || {}).value || ''
-  })).filter(a => a.oque || a.quem || a.quando || a.replicar);
+  return [...document.querySelectorAll('#action-tbody tr')].map(tr => {
+    const a = {
+      id: tr.dataset.id,
+      oque: tr.querySelector('[data-a=oque]').innerText.trim(),
+      quem: tr.querySelector('[data-a=quem]').innerText.trim(),
+      quando: tr.querySelector('[data-a=quando]').value.trim(),
+      status: tr.querySelector('[data-a=status]').value,
+      replicar: (tr.querySelector('input[type=radio]:checked') || {}).value || ''
+    };
+    if (tr.dataset.concluida) a.concluida_em = tr.dataset.concluida;
+    return SST.ajustarConclusao(a);
+  }).filter(a => a.oque || a.quem || a.quando || a.replicar || a.status !== 'pendente');
 }
 
 // ── Ishikawa (lista vem do banco; o Administrador edita) ──────────

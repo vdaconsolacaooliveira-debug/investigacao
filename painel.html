@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Painel de acompanhamento — Sistema SST</title>
+<link rel="icon" href="img/favicon.png">
+<link rel="stylesheet" href="css/app.css">
+<style>
+  .viz-root {
+    --surface-1: #ffffff;
+    --text-primary: #1a1a1a;
+    --text-secondary: #52514e;
+    --grid: #eceef1;
+    --st-concluida: #0ca30c; --st-andamento: #2a78d6; --st-pendente: #eda100; --st-atrasada: #d03b3b; --st-cancelada: #9aa5b1;
+  }
+  .sst-main.painel { max-width: 1320px; }
+  .filtros.painel-f { grid-template-columns: repeat(5, 1fr) auto; align-items: end; }
+  .filtros.painel-f label { display: flex; flex-direction: column; gap: 3px; font-size: 11px; color: var(--cinza); font-weight: 600; }
+  @media (max-width: 980px) { .filtros.painel-f { grid-template-columns: 1fr 1fr; } }
+
+  .kpis { display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px; margin-bottom: 16px; }
+  @media (max-width: 1100px) { .kpis { grid-template-columns: repeat(3, 1fr); } }
+  @media (max-width: 600px) { .kpis { grid-template-columns: repeat(2, 1fr); } }
+  .kpi { padding: 14px 16px; position: relative; }
+  .kpi .v { font-size: 28px; font-weight: 700; color: var(--text-primary); line-height: 1.1; }
+  .kpi .r { font-size: 12px; color: var(--text-secondary); margin-top: 4px; }
+  .kpi .s { font-size: 11px; color: var(--cinza); margin-top: 2px; }
+  .kpi.alerta-kpi { border-left: 4px solid var(--st-atrasada); }
+  .kpi.alerta-kpi .v { color: var(--st-atrasada); }
+  .kpi .medidor { height: 6px; border-radius: 3px; background: var(--grid); margin-top: 8px; overflow: hidden; }
+  .kpi .medidor span { display: block; height: 100%; background: var(--st-concluida); border-radius: 3px; }
+
+  .grade-graf { display: grid; grid-template-columns: 1.35fr 1fr; gap: 16px; margin-bottom: 16px; }
+  @media (max-width: 1000px) { .grade-graf { grid-template-columns: 1fr; } }
+  .graf { padding: 16px 18px; }
+  .graf h3, .bloco h3 { margin: 0 0 2px; font-size: 15px; color: var(--azul); }
+  .graf p.sub, .bloco p.sub { margin: 0 0 12px; font-size: 12px; color: var(--cinza); }
+  .graf .area { position: relative; height: 280px; }
+  .bloco { margin-bottom: 16px; }
+  .bloco .cab { display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; padding: 16px 18px 10px; flex-wrap: wrap; }
+  .bloco table.tabela td, .bloco table.tabela th { padding: 9px 10px; }
+  .bloco table.tabela tbody tr { cursor: default; }
+  .num-r { text-align: right; font-variant-numeric: tabular-nums; }
+  td.num-r b.atr { color: var(--st-atrasada); }
+
+  .progresso { display: flex; align-items: center; gap: 8px; min-width: 150px; }
+  .progresso .barra { flex: 1; height: 8px; border-radius: 4px; background: var(--grid); overflow: hidden; display: flex; gap: 2px; }
+  .progresso .barra span { display: block; height: 100%; }
+  .progresso .barra span:first-child { border-radius: 4px 0 0 4px; }
+  .progresso .barra span:last-child { border-radius: 0 4px 4px 0; }
+  .progresso small { font-size: 11px; color: var(--text-secondary); white-space: nowrap; font-variant-numeric: tabular-nums; }
+
+  .st { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 700; white-space: nowrap; color: var(--text-primary); }
+  .st i { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
+  .etapa { font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 10px; white-space: nowrap; }
+  .etapa.investigacao { background: #efeafd; color: #4a3aa7; }
+  .etapa.acoes { background: var(--azul-claro); color: var(--azul); }
+  .etapa.encerrado { background: #e6f4e7; color: var(--verde); }
+  .etapa.sem_acoes { background: #fff6dc; color: #8a6510; }
+
+  .acoes-f { display: flex; gap: 8px; flex-wrap: wrap; }
+  .acoes-f select, .acoes-f input { font: inherit; font-size: 12px; padding: 6px 8px; border: 1px solid #cfd5dd; border-radius: 6px; }
+  select.mudar-st { font: inherit; font-size: 12px; padding: 4px 6px; border: 1px solid #dfe3e8; border-radius: 6px; background: #fff; cursor: pointer; }
+  select.mudar-st:disabled { background: transparent; border-color: transparent; cursor: default; appearance: none; color: inherit; }
+  .prazo-atr { color: var(--st-atrasada); font-weight: 700; }
+  .dias { display: block; font-size: 10px; color: var(--st-atrasada); }
+  a.rel { color: var(--azul); font-weight: 700; text-decoration: none; font-family: Consolas, "Courier New", monospace; font-size: 12px; white-space: nowrap; }
+  a.rel:hover { text-decoration: underline; }
+  .vazio-p { padding: 26px; text-align: center; color: var(--cinza); font-size: 13px; }
+
+  .so-impressao { display: none !important; }
+  .ver-tabela { font-size: 11px; color: var(--azul); background: none; border: none; cursor: pointer; padding: 0; font-weight: 600; }
+
+  @media print {
+    @page { size: A4 landscape; margin: 12mm; }
+    body.sst-app { background: #fff; }
+    .sst-main.painel { padding: 0; max-width: none; }
+    .so-impressao { display: flex !important; }
+    .sem-impressao, .sst-titulo .acoes-topo, .filtros, .acoes-f, .ver-tabela { display: none !important; }
+    .sst-card { box-shadow: none; border-color: #d0d5dc; }
+    .grade-graf { grid-template-columns: 1fr 1fr; }
+    .graf .area { height: 230px; }
+    .bloco, .graf, .kpis { break-inside: avoid; }
+    .bloco.longo { break-inside: auto; }
+    table.tabela th { background: #f2f4f7 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .progresso .barra, .st i, .etapa, .kpi .medidor { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    select.mudar-st, #sst-toasts { display: none !important; }
+    .tabela-wrap { overflow: visible; }
+  }
+  .cab-impressao { display: flex; align-items: center; gap: 16px; border-bottom: 3px solid var(--azul); padding-bottom: 10px; margin-bottom: 14px; }
+  .cab-impressao img { height: 46px; }
+  .cab-impressao h1 { margin: 0; font-size: 20px; color: var(--azul); }
+  .cab-impressao p { margin: 2px 0 0; font-size: 12px; color: var(--cinza); }
+</style>
+</head>
+<body class="sst-app">
+<header id="sst-appbar"></header>
+
+<main class="sst-main painel viz-root">
+  <div class="so-impressao cab-impressao">
+    <img src="img/logo-db.png" alt="DB Agronegócios">
+    <div>
+      <h1>Relatório de acompanhamento — Segurança do Trabalho</h1>
+      <p id="imp-info"></p>
+    </div>
+  </div>
+
+  <div class="sst-titulo sem-impressao">
+    <div>
+      <h1>Painel de acompanhamento</h1>
+      <p id="sub">Em que pé está cada relatório e cada ação.</p>
+    </div>
+    <div class="acoes-topo" style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn" id="b-csv" type="button">⬇️ Ações em planilha (CSV)</button>
+      <button class="btn primario" id="b-imprimir" type="button">🖨️ Gerar relatório (PDF)</button>
+    </div>
+  </div>
+
+  <div class="sst-card filtros painel-f">
+    <label id="lb-tecnico">Técnico responsável<select id="f-tecnico"><option value="">Todos</option></select></label>
+    <label>Unidade<select id="f-unidade"><option value="">Todas</option></select></label>
+    <label>Ano da ocorrência<select id="f-ano"><option value="">Todos</option></select></label>
+    <label>Tipo<select id="f-tipo"><option value="">NIAT e 5 Porquês</option><option value="niat">Só NIAT</option><option value="5pq">Só 5 Porquês</option></select></label>
+    <label>Classificação<select id="f-classif"><option value="">Todas</option><option value="grave">Grave</option><option value="leve">Leve</option><option value="incidente">Incidente / Quase acidente</option></select></label>
+    <button class="btn pequeno" id="b-limpar" type="button" style="height:36px">Limpar</button>
+  </div>
+
+  <div class="kpis" id="kpis"></div>
+
+  <div class="grade-graf">
+    <section class="sst-card graf">
+      <h3 id="g1-tit">Ações por técnico</h3>
+      <p class="sub">Situação das ações de cada técnico responsável. Passe o mouse para ver os números.</p>
+      <div class="area"><canvas id="g-tecnico" role="img" aria-label="Ações por técnico, por situação"></canvas></div>
+    </section>
+    <section class="sst-card graf">
+      <h3>Relatórios por mês</h3>
+      <p class="sub">Data da ocorrência, por classificação.</p>
+      <div class="area"><canvas id="g-mes" role="img" aria-label="Relatórios por mês e classificação"></canvas></div>
+    </section>
+  </div>
+
+  <section class="sst-card bloco" id="bl-tecnico">
+    <div class="cab"><div><h3>Situação por técnico</h3><p class="sub" style="margin:0">Relatórios por etapa e andamento das ações de cada técnico.</p></div></div>
+    <div class="tabela-wrap" id="t-tecnico"></div>
+  </section>
+
+  <section class="sst-card bloco longo">
+    <div class="cab"><div><h3>Situação por relatório</h3><p class="sub" style="margin:0">Etapa de cada relatório e quanto do plano de ação já foi feito.</p></div>
+      <div class="acoes-f"><select id="f-etapa"><option value="">Todas as etapas</option><option value="investigacao">Em investigação</option><option value="acoes">Ações em andamento</option><option value="sem_acoes">Concluído sem plano de ação</option><option value="encerrado">Encerrado</option></select></div>
+    </div>
+    <div class="tabela-wrap" id="t-relatorio"></div>
+  </section>
+
+  <div class="grade-graf" style="grid-template-columns:1fr 1fr">
+    <section class="sst-card bloco" style="margin:0">
+      <div class="cab"><div><h3>Quem está com as ações</h3><p class="sub" style="margin:0">Pelo campo "Quem irá fazer" / "Responsável" de cada ação.</p></div></div>
+      <div class="tabela-wrap" id="t-executor"></div>
+    </section>
+    <section class="sst-card graf" style="margin:0">
+      <h3>Relatórios por unidade</h3>
+      <p class="sub">Quantidade no filtro atual.</p>
+      <div class="area"><canvas id="g-unidade" role="img" aria-label="Relatórios por unidade"></canvas></div>
+    </section>
+  </div>
+
+  <section class="sst-card bloco longo" style="margin-top:16px">
+    <div class="cab">
+      <div><h3>Lista de ações</h3><p class="sub" style="margin:0" id="acoes-sub">Atrasadas primeiro. Mude o status direto aqui.</p></div>
+      <div class="acoes-f">
+        <select id="fa-status">
+          <option value="abertas">Só abertas (pendente, em andamento, atrasada)</option>
+          <option value="">Todas</option>
+          <option value="atrasada">⚠️ Atrasadas</option>
+          <option value="pendente">⏳ Pendentes</option>
+          <option value="andamento">🔄 Em andamento</option>
+          <option value="concluida">✅ Concluídas</option>
+          <option value="cancelada">⛔ Canceladas</option>
+        </select>
+        <input id="fa-busca" type="search" placeholder="Pesquisar ação ou pessoa…">
+      </div>
+    </div>
+    <div class="tabela-wrap" id="t-acoes"></div>
+  </section>
+</main>
+
+<script src="js/vendor/supabase.js"></script>
+<script src="js/vendor/chart.umd.min.js"></script>
+<script src="js/config.js"></script>
+<script src="js/app.js"></script>
+<script>
+const { sb, esc, toast, traduzErro, CLASSIF, STATUS_ACAO } = SST;
+const $ = id => document.getElementById(id);
+const css = n => getComputedStyle(document.querySelector('.viz-root')).getPropertyValue(n).trim();
+const ORDEM_ST = ['concluida', 'andamento', 'pendente', 'atrasada'];
+const ETAPAS = {
+  investigacao: 'Em investigação', acoes: 'Ações em andamento', sem_acoes: 'Concluído sem plano de ação', encerrado: 'Encerrado'
+};
+const COR_CLASSIF = { grave: '#B71247', leve: '#E07B00', incidente: '#2e7d32' };
+const MESES = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+
+let perfil, relatorios = [], acoes = [], graficos = {};
+const norm = t => String(t || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().trim();
+const nomeBonito = t => String(t || '').trim().replace(/\s+/g, ' ').toLowerCase().replace(/(^|\s)\S/g, c => c.toUpperCase());
+
+// ── Dados ─────────────────────────────────────────────────────────
+function extrairAcoes(r) {
+  const d = r.dados || {};
+  const base = { rid: r.id, numero: r.numero, tipo: r.tipo, unidade: r.unidade, unidade_nome: r.unidade_nome,
+                 tecnico: r.responsavel, tecnico_nome: r.responsavel_nome || '—', classificacao: r.classificacao };
+  const out = [];
+  if (r.tipo === 'niat') (d.acoes || []).forEach((a, i) => {
+    if (!(a.oque || '').trim()) return;
+    out.push({ ...base, chave: a.id || 'i' + i, origem: 'Plano de ação', oque: a.oque, quem: a.quem || '', prazo: a.quando || '',
+               status: a.status || 'pendente', concluida_em: a.concluida_em || null });
+  });
+  else (d.cadeias || []).forEach((c, ci) => c.forEach((l, li) => {
+    if (!(l.acao || '').trim()) return;
+    out.push({ ...base, chave: l.id || `c${ci}_${li}`, origem: `Cadeia ${String(ci + 1).padStart(2, '0')}`, oque: l.acao, quem: l.resp || '',
+               prazo: l.prazo || '', status: l.status || 'pendente', concluida_em: l.concluida_em || null });
+  }));
+  out.forEach(a => { a.sit = SST.situacaoAcao(a); a.prazoISO = SST.dataISO(a.prazo); });
+  return out;
+}
+function etapa(r, acs) {
+  if (r.situacao !== 'concluido') return 'investigacao';
+  const validas = acs.filter(a => a.sit !== 'cancelada');
+  if (!validas.length) return 'sem_acoes';
+  return validas.every(a => a.sit === 'concluida') ? 'encerrado' : 'acoes';
+}
+
+async function carregar() {
+  const [{ data: rs, error: e1 }, { data: ls, error: e2 }] = await Promise.all([
+    sb.from('relatorios').select('id,tipo,numero,unidade,responsavel,classificacao,situacao,data_ocorrencia,niat_id,ano,dados,atualizado_em'),
+    sb.from('lista_relatorios').select('id,unidade_nome,responsavel_nome')
+  ]);
+  if (e1 || e2) throw (e1 || e2);
+  const nomes = Object.fromEntries(ls.map(l => [l.id, l]));
+  relatorios = rs.map(r => ({ ...r, unidade_nome: (nomes[r.id] || {}).unidade_nome || r.unidade, responsavel_nome: (nomes[r.id] || {}).responsavel_nome || '—' }));
+  relatorios.forEach(r => { r._acoes = extrairAcoes(r); r._etapa = etapa(r, r._acoes); });
+}
+
+// ── Filtros ───────────────────────────────────────────────────────
+function filtrados() {
+  const f = { t: $('f-tecnico').value, u: $('f-unidade').value, a: $('f-ano').value, tp: $('f-tipo').value, c: $('f-classif').value };
+  return relatorios.filter(r => (!f.t || r.responsavel === f.t) && (!f.u || r.unidade === f.u) &&
+    (!f.a || String(r.ano) === f.a) && (!f.tp || r.tipo === f.tp) && (!f.c || r.classificacao === f.c));
+}
+function textoFiltros() {
+  const partes = [];
+  [['f-tecnico', 'Técnico'], ['f-unidade', 'Unidade'], ['f-ano', 'Ano'], ['f-tipo', 'Tipo'], ['f-classif', 'Classificação']].forEach(([id, rot]) => {
+    const s = $(id); if (s.value) partes.push(`${rot}: ${s.selectedOptions[0].text}`);
+  });
+  return partes.length ? partes.join(' · ') : 'Sem filtros (todos os relatórios)';
+}
+
+// ── Indicadores ───────────────────────────────────────────────────
+function contar(acs) {
+  const c = { total: acs.length, concluida: 0, andamento: 0, pendente: 0, atrasada: 0, cancelada: 0 };
+  acs.forEach(a => c[a.sit]++);
+  c.abertas = c.pendente + c.andamento + c.atrasada;
+  c.validas = c.total - c.cancelada;
+  c.pct = c.validas ? Math.round(100 * c.concluida / c.validas) : null;
+  return c;
+}
+function desenharKpis(rs, acs) {
+  const c = contar(acs);
+  const inv = rs.filter(r => r._etapa === 'investigacao').length;
+  const graves = rs.filter(r => r.classificacao === 'grave').length;
+  const k = (v, r, s = '', cls = '') => `<div class="sst-card kpi ${cls}"><div class="v">${v}</div><div class="r">${r}</div>${s}</div>`;
+  $('kpis').innerHTML =
+    k(rs.length, 'Relatórios', `<div class="s">${rs.filter(r => r.tipo === 'niat').length} NIAT · ${rs.filter(r => r.tipo === '5pq').length} 5 Porquês</div>`) +
+    k(inv, 'Em investigação', '<div class="s">relatórios ainda em rascunho</div>') +
+    k(graves, 'Acidentes graves', '<div class="s">no filtro atual</div>') +
+    k(c.abertas, 'Ações abertas', `<div class="s">${c.pendente} pendentes · ${c.andamento} em andamento</div>`) +
+    k(c.atrasada, '⚠️ Ações atrasadas', '<div class="s">prazo vencido e não concluídas</div>', c.atrasada ? 'alerta-kpi' : '') +
+    k(c.pct === null ? '—' : c.pct + '%', 'Ações concluídas',
+      `<div class="medidor"><span style="width:${c.pct || 0}%"></span></div><div class="s">${c.concluida} de ${c.validas} ação(ões)</div>`);
+}
+
+// ── Gráficos ──────────────────────────────────────────────────────
+Chart.defaults.font.family = '"Segoe UI", Arial, sans-serif';
+Chart.defaults.font.size = 12;
+Chart.defaults.color = '#52514e';
+Chart.defaults.animation = false;
+function grafico(id, cfg) {
+  if (graficos[id]) graficos[id].destroy();
+  graficos[id] = new Chart($(id), cfg);
+}
+const tooltip = { backgroundColor: '#1f2937', padding: 10, cornerRadius: 6, boxPadding: 4, usePointStyle: true };
+const legenda = { position: 'top', align: 'start', labels: { usePointStyle: true, pointStyle: 'circle', boxWidth: 8, boxHeight: 8, padding: 14 } };
+const eixo = (titulo) => ({ grid: { color: css('--grid') }, border: { display: false }, ticks: { precision: 0 }, title: titulo ? { display: true, text: titulo, color: '#6b7280', font: { size: 11 } } : undefined });
+
+function desenharGraficos(rs, acs) {
+  // 1) Ações por técnico (barras horizontais empilhadas por situação)
+  const porTec = {};
+  acs.forEach(a => { (porTec[a.tecnico_nome] = porTec[a.tecnico_nome] || []).push(a); });
+  const tecs = Object.keys(porTec).sort((a, b) => porTec[b].length - porTec[a].length);
+  const admin = perfil.papel === 'admin';
+  $('g1-tit').textContent = admin ? 'Ações por técnico' : 'Minhas ações por situação';
+  grafico('g-tecnico', {
+    type: 'bar',
+    data: { labels: tecs.length ? tecs : ['Sem ações'], datasets: ORDEM_ST.map(k => ({
+      label: STATUS_ACAO[k].rotulo, data: tecs.map(t => porTec[t].filter(a => a.sit === k).length),
+      backgroundColor: css('--st-' + k), borderColor: css('--surface-1'), borderWidth: 2, borderRadius: 4, borderSkipped: false, maxBarThickness: 28 })) },
+    options: { indexAxis: 'y', maintainAspectRatio: false,
+      plugins: { legend: legenda, tooltip: { ...tooltip, mode: 'index', callbacks: {
+        footer: it => `Total: ${it.reduce((s, x) => s + x.parsed.x, 0)} ação(ões)` } } },
+      scales: { x: { ...eixo('Ações'), stacked: true }, y: { stacked: true, grid: { display: false }, border: { display: false } } } }
+  });
+
+  // 2) Relatórios por mês (colunas empilhadas por classificação)
+  const anoSel = $('f-ano').value;
+  const comData = rs.filter(r => r.data_ocorrencia);
+  let chaves;
+  if (anoSel) chaves = MESES.map((_, i) => `${anoSel}-${String(i + 1).padStart(2, '0')}`);
+  else {
+    const set = [...new Set(comData.map(r => r.data_ocorrencia.slice(0, 7)))].sort();
+    chaves = set.slice(-12);
+  }
+  const rot = chaves.map(k => `${MESES[+k.slice(5, 7) - 1]}/${k.slice(2, 4)}`);
+  grafico('g-mes', {
+    type: 'bar',
+    data: { labels: rot.length ? rot : ['—'], datasets: ['grave', 'leve', 'incidente'].map(c => ({
+      label: CLASSIF[c].curto === 'Incidente' ? 'Incidente / Quase acidente' : CLASSIF[c].curto,
+      data: chaves.map(k => comData.filter(r => r.classificacao === c && r.data_ocorrencia.startsWith(k)).length),
+      backgroundColor: COR_CLASSIF[c], borderColor: css('--surface-1'), borderWidth: 2, borderRadius: 4, borderSkipped: false, maxBarThickness: 34 })) },
+    options: { maintainAspectRatio: false,
+      plugins: { legend: legenda, tooltip: { ...tooltip, mode: 'index', callbacks: { footer: it => `Total: ${it.reduce((s, x) => s + x.parsed.y, 0)}` } } },
+      scales: { x: { stacked: true, grid: { display: false }, border: { display: false } }, y: { ...eixo('Relatórios'), stacked: true } } }
+  });
+
+  // 3) Relatórios por unidade (uma série)
+  const porUn = {};
+  rs.forEach(r => porUn[r.unidade_nome] = (porUn[r.unidade_nome] || 0) + 1);
+  const uns = Object.keys(porUn).sort((a, b) => porUn[b] - porUn[a]);
+  grafico('g-unidade', {
+    type: 'bar',
+    data: { labels: uns.length ? uns : ['—'], datasets: [{ label: 'Relatórios', data: uns.map(u => porUn[u]),
+      backgroundColor: '#2a78d6', borderRadius: 4, borderSkipped: false, maxBarThickness: 24 }] },
+    options: { indexAxis: 'y', maintainAspectRatio: false, plugins: { legend: { display: false }, tooltip },
+      scales: { x: eixo('Relatórios'), y: { grid: { display: false }, border: { display: false } } } }
+  });
+}
+
+// ── Tabelas ───────────────────────────────────────────────────────
+function barraProgresso(c) {
+  if (!c.validas) return '<span class="sub" style="color:var(--cinza)">sem ações</span>';
+  const seg = ORDEM_ST.map(k => c[k] ? `<span style="width:${100 * c[k] / c.validas}%;background:${css('--st-' + k)}" title="${STATUS_ACAO[k].rotulo}: ${c[k]}"></span>` : '').join('');
+  return `<div class="progresso"><div class="barra">${seg}</div><small>${c.concluida}/${c.validas} · ${c.pct}%</small></div>`;
+}
+function proximoPrazo(acs) {
+  const ab = acs.filter(a => ['pendente', 'andamento', 'atrasada'].includes(a.sit) && a.prazoISO).sort((a, b) => a.prazoISO.localeCompare(b.prazoISO));
+  if (!ab.length) return '—';
+  const a = ab[0];
+  return a.sit === 'atrasada' ? `<span class="prazo-atr">${SST.dataBR(a.prazoISO)}</span>` : SST.dataBR(a.prazoISO);
+}
+function linkRel(r) {
+  return `<a class="rel" href="${r.tipo === 'niat' ? 'niat.html' : 'cincoporques.html'}?id=${r.id || r.rid}">${esc(r.numero)}</a>`;
+}
+
+function tabelaTecnicos(rs) {
+  const grupos = {};
+  rs.forEach(r => (grupos[r.responsavel] = grupos[r.responsavel] || { nome: r.responsavel_nome, rs: [] }).rs.push(r));
+  const linhas = Object.values(grupos).map(g => {
+    const acs = g.rs.flatMap(r => r._acoes);
+    return { ...g, c: contar(acs), e: Object.fromEntries(Object.keys(ETAPAS).map(k => [k, g.rs.filter(r => r._etapa === k).length])), prox: proximoPrazo(acs) };
+  }).sort((a, b) => b.c.atrasada - a.c.atrasada || b.c.abertas - a.c.abertas);
+  if (!linhas.length) return '<div class="vazio-p">Nenhum relatório no filtro.</div>';
+  return `<table class="tabela"><thead><tr>
+      <th>Técnico</th><th class="num-r">Relatórios</th><th class="num-r">Em investigação</th><th class="num-r">Ações em andamento</th><th class="num-r">Encerrados</th>
+      <th class="num-r">Ações abertas</th><th class="num-r">Atrasadas</th><th>Andamento das ações</th><th>Próximo prazo</th></tr></thead><tbody>
+    ${linhas.map(l => `<tr>
+      <td><b>${esc(l.nome)}</b></td><td class="num-r">${l.rs.length}</td><td class="num-r">${l.e.investigacao}</td>
+      <td class="num-r">${l.e.acoes}</td><td class="num-r">${l.e.encerrado}</td>
+      <td class="num-r">${l.c.abertas}</td><td class="num-r">${l.c.atrasada ? `<b class="atr">⚠️ ${l.c.atrasada}</b>` : '0'}</td>
+      <td>${barraProgresso(l.c)}</td><td>${l.prox}</td></tr>`).join('')}
+    </tbody></table>`;
+}
+
+function tabelaRelatorios(rs) {
+  const et = $('f-etapa').value;
+  const ordemEt = { investigacao: 1, acoes: 0, sem_acoes: 2, encerrado: 3 };
+  const l = rs.filter(r => !et || r._etapa === et).map(r => ({ r, c: contar(r._acoes) }))
+    .sort((a, b) => b.c.atrasada - a.c.atrasada || ordemEt[a.r._etapa] - ordemEt[b.r._etapa] || String(b.r.data_ocorrencia).localeCompare(String(a.r.data_ocorrencia)));
+  if (!l.length) return '<div class="vazio-p">Nenhum relatório nesta etapa.</div>';
+  const admin = perfil.papel === 'admin';
+  return `<table class="tabela"><thead><tr>
+      <th>Nº</th>${admin ? '<th>Técnico</th>' : ''}<th>Unidade</th><th>Ocorrência</th><th>Classificação</th><th>Etapa</th>
+      <th>Ações</th><th class="num-r">Atrasadas</th><th>Próximo prazo</th></tr></thead><tbody>
+    ${l.map(({ r, c }) => `<tr>
+      <td>${linkRel(r)}</td>${admin ? `<td>${esc(r.responsavel_nome)}</td>` : ''}<td>${esc(r.unidade_nome)}</td>
+      <td>${SST.dataBR(r.data_ocorrencia) || '—'}</td>
+      <td>${r.classificacao ? `<span class="etiqueta ${r.classificacao}">${CLASSIF[r.classificacao].curto}</span>` : '—'}</td>
+      <td><span class="etapa ${r._etapa}">${ETAPAS[r._etapa]}</span></td>
+      <td>${barraProgresso(c)}</td>
+      <td class="num-r">${c.atrasada ? `<b class="atr" style="color:var(--st-atrasada)">⚠️ ${c.atrasada}</b>` : '0'}</td>
+      <td>${proximoPrazo(r._acoes)}</td></tr>`).join('')}
+    </tbody></table>`;
+}
+
+function tabelaExecutores(acs) {
+  const g = {};
+  acs.forEach(a => {
+    const k = norm(a.quem) || '(sem nome)';
+    (g[k] = g[k] || { nome: a.quem ? a.quem.trim().replace(/\s+/g, ' ') : '(sem nome)', acs: [] }).acs.push(a);
+  });
+  const l = Object.values(g).map(x => ({ ...x, c: contar(x.acs), prox: proximoPrazo(x.acs) }))
+    .sort((a, b) => b.c.atrasada - a.c.atrasada || b.c.abertas - a.c.abertas || a.nome.localeCompare(b.nome));
+  if (!l.length) return '<div class="vazio-p">Nenhuma ação cadastrada.</div>';
+  return `<table class="tabela"><thead><tr><th>Quem</th><th class="num-r">Abertas</th><th class="num-r">Atrasadas</th><th class="num-r">Concluídas</th><th>Próximo prazo</th></tr></thead><tbody>
+    ${l.map(x => `<tr><td><b>${esc(x.nome)}</b></td><td class="num-r">${x.c.abertas}</td>
+      <td class="num-r">${x.c.atrasada ? `<b class="atr" style="color:var(--st-atrasada)">⚠️ ${x.c.atrasada}</b>` : '0'}</td>
+      <td class="num-r">${x.c.concluida}</td><td>${x.prox}</td></tr>`).join('')}</tbody></table>`;
+}
+
+function acoesFiltradas(acs) {
+  const st = $('fa-status').value, termos = norm($('fa-busca').value).split(/\s+/).filter(Boolean);
+  const ordem = { atrasada: 0, andamento: 1, pendente: 2, concluida: 3, cancelada: 4 };
+  return acs.filter(a => (st === 'abertas' ? ['pendente', 'andamento', 'atrasada'].includes(a.sit) : !st || a.sit === st) &&
+      termos.every(t => norm([a.oque, a.quem, a.numero, a.tecnico_nome, a.unidade_nome].join(' ')).includes(t)))
+    .sort((a, b) => ordem[a.sit] - ordem[b.sit] || (a.prazoISO || '9999').localeCompare(b.prazoISO || '9999'));
+}
+function tabelaAcoes(acs) {
+  const l = acoesFiltradas(acs);
+  if (!l.length) return '<div class="vazio-p">Nenhuma ação com este filtro.</div>';
+  const admin = perfil.papel === 'admin', hoje = SST.hojeISO();
+  return `<table class="tabela"><thead><tr><th>Situação</th><th style="width:34%">Ação</th><th>Quem</th><th>Prazo</th>
+      <th>Relatório</th>${admin ? '<th>Técnico</th>' : ''}<th>Concluída em</th></tr></thead><tbody>
+    ${l.map(a => {
+      const dias = a.sit === 'atrasada' && a.prazoISO ? Math.round((new Date(hoje) - new Date(a.prazoISO)) / 864e5) : 0;
+      return `<tr>
+        <td><span class="st"><i style="background:${css('--st-' + a.sit)}"></i>${STATUS_ACAO[a.sit].rotulo}</span><br>
+          <select class="mudar-st" data-rid="${a.rid}" data-chave="${esc(a.chave)}" title="Mudar status">${SST.opcoesStatus(a.status)}</select></td>
+        <td>${esc(a.oque)}<span class="sub">${esc(a.origem)}</span></td>
+        <td>${esc(a.quem) || '<span class="sub">—</span>'}</td>
+        <td class="${a.sit === 'atrasada' ? 'prazo-atr' : ''}">${a.prazoISO ? SST.dataBR(a.prazoISO) : esc(a.prazo || '—')}${dias ? `<span class="dias">${dias} dia(s) de atraso</span>` : ''}</td>
+        <td>${linkRel(a)}<span class="sub">${esc(a.unidade_nome)}</span></td>
+        ${admin ? `<td>${esc(a.tecnico_nome)}</td>` : ''}
+        <td>${a.concluida_em ? SST.dataBR(a.concluida_em) : '—'}</td></tr>`;
+    }).join('')}</tbody></table>`;
+}
+
+// Muda o status da ação dentro do relatório (relê o relatório antes, para não perder edições)
+async function mudarStatus(sel) {
+  const { rid, chave } = sel.dataset, novo = sel.value;
+  sel.disabled = true;
+  try {
+    const { data, error } = await sb.from('relatorios').select('tipo,dados').eq('id', rid).single();
+    if (error) throw error;
+    const d = data.dados || {};
+    let alvo = null;
+    if (data.tipo === 'niat') {
+      (d.acoes || []).forEach((a, i) => { if ((a.id || 'i' + i) === chave) alvo = a; });
+    } else {
+      (d.cadeias || []).forEach((c, ci) => c.forEach((l, li) => { if ((l.id || `c${ci}_${li}`) === chave) alvo = l; }));
+    }
+    if (!alvo) throw new Error('Ação não encontrada. O relatório pode ter sido alterado; recarregue a página.');
+    alvo.status = novo; SST.ajustarConclusao(alvo);
+    if (!alvo.id) alvo.id = SST.novoId();
+    const { error: e2 } = await sb.from('relatorios').update({ dados: d }).eq('id', rid);
+    if (e2) throw e2;
+    const r = relatorios.find(x => x.id === rid);
+    r.dados = d; r._acoes = extrairAcoes(r); r._etapa = etapa(r, r._acoes);
+    toast(`Ação marcada como "${STATUS_ACAO[novo].rotulo}".`, 'ok');
+    desenhar();
+  } catch (e) { toast(traduzErro(e), 'erro', 6000); desenhar(); }
+}
+
+function exportarCSV() {
+  const l = acoesFiltradas(filtrados().flatMap(r => r._acoes));
+  const q = v => `"${String(v ?? '').replace(/"/g, '""').replace(/\r?\n/g, ' ')}"`;
+  const cab = ['Situação', 'Status informado', 'Ação', 'Origem', 'Quem', 'Prazo', 'Concluída em', 'Relatório', 'Tipo', 'Unidade', 'Classificação', 'Técnico responsável'];
+  const linhas = l.map(a => [STATUS_ACAO[a.sit].rotulo, STATUS_ACAO[a.status].rotulo, a.oque, a.origem, a.quem, a.prazoISO ? SST.dataBR(a.prazoISO) : a.prazo,
+    a.concluida_em ? SST.dataBR(a.concluida_em) : '', a.numero, a.tipo === 'niat' ? 'NIAT' : '5 Porquês', a.unidade_nome,
+    a.classificacao ? CLASSIF[a.classificacao].rotulo : '', a.tecnico_nome].map(q).join(';'));
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob(['﻿' + [cab.map(q).join(';'), ...linhas].join('\r\n')], { type: 'text/csv;charset=utf-8' }));
+  a.download = `acoes-sst-${SST.hojeISO()}.csv`;
+  a.click();
+}
+
+function desenhar() {
+  const rs = filtrados();
+  const acs = rs.flatMap(r => r._acoes);
+  desenharKpis(rs, acs);
+  desenharGraficos(rs, acs);
+  $('t-tecnico').innerHTML = tabelaTecnicos(rs);
+  $('t-relatorio').innerHTML = tabelaRelatorios(rs);
+  $('t-executor').innerHTML = tabelaExecutores(acs);
+  $('t-acoes').innerHTML = tabelaAcoes(acs);
+  document.querySelectorAll('select.mudar-st').forEach(s => s.onchange = () => mudarStatus(s));
+  $('imp-info').textContent = `Gerado em ${SST.dataHoraBR(new Date().toISOString())} por ${perfil.nome} · ${textoFiltros()}`;
+}
+
+(async function () {
+  try { perfil = await SST.exigirLogin(); } catch (e) { return; }
+  await SST.barra(perfil, 'painel');
+  const admin = perfil.papel === 'admin';
+  if (!admin) {
+    $('lb-tecnico').hidden = true;
+    $('bl-tecnico').hidden = true;
+    $('sub').textContent = 'Em que pé estão os seus relatórios e as suas ações.';
+  }
+  try { await carregar(); } catch (e) { return toast(traduzErro(e), 'erro', 6000); }
+
+  const tecs = {}; relatorios.forEach(r => tecs[r.responsavel] = r.responsavel_nome);
+  $('f-tecnico').innerHTML += Object.entries(tecs).sort((a, b) => a[1].localeCompare(b[1])).map(([id, n]) => `<option value="${id}">${esc(n)}</option>`).join('');
+  (await SST.unidades()).forEach(u => $('f-unidade').insertAdjacentHTML('beforeend', `<option value="${esc(u.sigla)}">${esc(u.nome)}</option>`));
+  [...new Set(relatorios.map(r => r.ano))].sort((a, b) => b - a).forEach(a => $('f-ano').insertAdjacentHTML('beforeend', `<option>${a}</option>`));
+  const anoAtual = String(new Date().getFullYear());
+  if ([...$('f-ano').options].some(o => o.value === anoAtual)) $('f-ano').value = anoAtual;
+  if (SST.param('tecnico')) $('f-tecnico').value = SST.param('tecnico');
+
+  ['f-tecnico', 'f-unidade', 'f-ano', 'f-tipo', 'f-classif', 'f-etapa', 'fa-status'].forEach(id => $(id).addEventListener('change', desenhar));
+  $('fa-busca').addEventListener('input', () => { $('t-acoes').innerHTML = tabelaAcoes(filtrados().flatMap(r => r._acoes)); document.querySelectorAll('select.mudar-st').forEach(s => s.onchange = () => mudarStatus(s)); });
+  $('b-limpar').onclick = () => { ['f-tecnico', 'f-unidade', 'f-ano', 'f-tipo', 'f-classif'].forEach(id => $(id).value = ''); desenhar(); };
+  $('b-csv').onclick = exportarCSV;
+  $('b-imprimir').onclick = () => {
+    // No relatório impresso entram todas as ações do filtro, não só as abertas
+    const anterior = $('fa-status').value;
+    $('fa-status').value = ''; desenhar();
+    Object.values(graficos).forEach(g => g.resize());
+    setTimeout(() => { window.print(); $('fa-status').value = anterior; desenhar(); }, 150);
+  };
+  window.addEventListener('beforeprint', () => Object.values(graficos).forEach(g => g.resize()));
+  desenhar();
+})();
+</script>
+</body>
+</html>

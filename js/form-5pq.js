@@ -48,8 +48,8 @@ function novaCadeia(linhas) {
   document.getElementById('cadeias-container').appendChild(bloco);
 
   const hdrEl = document.getElementById(id + '-headers');
-  const heads = ['Problema', '1° Porquê', '2° Porquê', '3° Porquê', '4° Porquê', '5° Porquê', '6° Porquê', 'Ação recomendada', 'Responsável', 'Prazo'];
-  const hClasses = ['w-prob', 'w-pq', 'w-pq', 'w-pq', 'w-pq', 'w-pq', 'w-pq', 'w-acao', 'w-resp', 'w-prazo'];
+  const heads = ['Problema', '1° Porquê', '2° Porquê', '3° Porquê', '4° Porquê', '5° Porquê', '6° Porquê', 'Ação recomendada', 'Responsável', 'Prazo', 'Status'];
+  const hClasses = ['w-prob', 'w-pq', 'w-pq', 'w-pq', 'w-pq', 'w-pq', 'w-pq', 'w-acao', 'w-resp', 'w-prazo', 'w-status'];
   const recuo = n > 1 ? '98px' : '0';
   hdrEl.style.paddingLeft = recuo;
   for (let i = 0; i < heads.length; i++) {
@@ -72,6 +72,8 @@ function adicionarLinha(cadeiaId, cadeiaNum, primeira, valores) {
   const v = valores || {};
   const linha = document.createElement('div');
   linha.className = 'grade-linha';
+  linha.dataset.id = v.id || SST.novoId();
+  if (v.concluida_em) linha.dataset.concluida = v.concluida_em;
 
   if (n === 1) {
     const c = document.createElement('div');
@@ -102,6 +104,20 @@ function adicionarLinha(cadeiaId, cadeiaNum, primeira, valores) {
     c.textContent = v[k] || '';
     linha.appendChild(c);
   });
+  const cs = document.createElement('div');
+  cs.className = 'mcell w-status';
+  cs.innerHTML = `<select data-c="status">${SST.opcoesStatus(v.status)}</select><span class="concl"></span>`;
+  linha.appendChild(cs);
+  const sel = cs.querySelector('select'), prazo = linha.querySelector('[data-c=prazo]');
+  const atualizar = () => {
+    const a = SST.ajustarConclusao({ status: sel.value, concluida_em: linha.dataset.concluida, prazo: prazo.innerText.trim() });
+    if (a.concluida_em) linha.dataset.concluida = a.concluida_em; else delete linha.dataset.concluida;
+    linha.className = 'grade-linha st-' + SST.situacaoAcao(a);
+    cs.querySelector('.concl').textContent = a.concluida_em ? `concluída ${SST.dataBR(a.concluida_em)}` : '';
+  };
+  sel.addEventListener('change', atualizar);
+  prazo.addEventListener('blur', atualizar);
+  atualizar();
 
   const x = document.createElement('button');
   x.className = 'btn-x-linha';
@@ -159,8 +175,11 @@ function lerCadeias() {
   return [...document.querySelectorAll('.cadeia-bloco')].map(b =>
     [...b.querySelectorAll('.grade-linha')].map(l => {
       const t = el => el ? el.innerText.replace(/\n$/, '').trim() : '';
-      const o = { pq: [...l.querySelectorAll('[data-c=pq]')].map(t), acao: t(l.querySelector('[data-c=acao]')),
-        resp: t(l.querySelector('[data-c=resp]')), prazo: t(l.querySelector('[data-c=prazo]')) };
+      const o = { id: l.dataset.id, pq: [...l.querySelectorAll('[data-c=pq]')].map(t), acao: t(l.querySelector('[data-c=acao]')),
+        resp: t(l.querySelector('[data-c=resp]')), prazo: t(l.querySelector('[data-c=prazo]')),
+        status: l.querySelector('[data-c=status]').value };
+      if (l.dataset.concluida) o.concluida_em = l.dataset.concluida;
+      SST.ajustarConclusao(o);
       const p = l.querySelector('[data-c=problema]');
       if (p) o.problema = t(p);
       return o;

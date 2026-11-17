@@ -300,6 +300,14 @@
   .field select:disabled { color: #1a1a1a; opacity: 1; background: #eceff3; cursor: not-allowed; }
   .btn-x { background: none; border: none; color: #c0392b; cursor: pointer; font-weight: bold; font-size: 13px; padding: 6px; width: 100%; }
   .btn-x:hover { background: #fff0ee; }
+  .cell-in { width: 100%; border: none; background: transparent; padding: 6px 8px; min-height: 32px; font-size: 12px; font-family: Arial, sans-serif; outline: none; }
+  .cell-in:focus { background: #eef3f8; }
+  .cell-status { width: 100%; border: none; background: transparent; padding: 6px 4px; font-size: 12px; font-family: Arial, sans-serif; outline: none; cursor: pointer; }
+  .cell-status:focus { background: #eef3f8; }
+  tr.st-concluida td { background: #f1f9f1 !important; }
+  tr.st-cancelada td { color: #8a8f96; text-decoration: line-through; }
+  tr.st-atrasada .cell-in[data-a=quando] { color: #d03b3b; font-weight: bold; }
+  .concl { display: block; font-size: 10px; color: #2e7d32; padding: 0 6px 4px; }
   .ishi-option.removido { color: #8a6510; font-style: italic; }
   .toolbar #responsavel { max-width: 170px; }
   .foto-nova img { outline: 2px dashed #E07B00; outline-offset: 2px; }
@@ -529,10 +537,11 @@
     <table class="action-table" id="action-table">
       <thead>
         <tr>
-          <th style="width:36%">O quê será feito</th>
-          <th style="width:20%">Quem irá fazer</th>
-          <th style="width:14%">Quando</th>
-          <th style="width:26%">Replicar para outras unidades?</th>
+          <th style="width:31%">O quê será feito</th>
+          <th style="width:17%">Quem irá fazer</th>
+          <th style="width:12%">Prazo</th>
+          <th style="width:16%">Status</th>
+          <th style="width:20%">Replicar para outras unidades?</th>
           <th class="col-x" style="width:4%"></th>
         </tr>
       </thead>
