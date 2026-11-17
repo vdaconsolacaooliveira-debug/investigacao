@@ -1,0 +1,297 @@
+/* =====================================================================
+   NIAT (FOR 005-001) — comportamento do formulário + gravação no banco
+   ===================================================================== */
+const { sb, toast, traduzErro } = SST;
+
+// ── Classificação (mantém o comportamento original) ───────────────
+const severities = [
+  { cls: '',          band: '⚠ ACIDENTE GRAVE',             val: 'grave' },
+  { cls: 'leve',      band: '⚠ ACIDENTE LEVE',              val: 'leve' },
+  { cls: 'incidente', band: '⚠ INCIDENTE / QUASE ACIDENTE', val: 'incidente' }
+];
+let sevIdx = 0;
+function setSeverity(val) {
+  sevIdx = Math.max(0, severities.findIndex(s => s.val === val));
+  const s = severities[sevIdx];
+  const band = document.getElementById('sev-band');
+  band.className = 'severity-band ' + s.cls;
+  band.innerHTML = s.band + '<span class="sev-hint">(clique para alternar classificação)</span>';
+  document.getElementById('sev-select').value = s.val;
+  const sel1 = document.getElementById('class-secao1');
+  if (sel1) sel1.value = s.val;
+  marcarSujo();
+}
+function setSeverityByLabel(val) { setSeverity(val); }
+function cycleSeverity() { setSeverity(severities[(sevIdx + 1) % severities.length].val); }
+
+// ── Plano de ação ─────────────────────────────────────────────────
+let rowCount = 0;
+function addRow(acao = {}) {
+  const tbody = document.getElementById('action-tbody');
+  const tr = document.createElement('tr');
+  const rn = rowCount++;
+  tr.innerHTML = `
+    <td><div class="cell-val" contenteditable="true" data-a="oque"></div></td>
+    <td><div class="cell-val" contenteditable="true" data-a="quem"></div></td>
+    <td><div class="cell-val" contenteditable="true" data-a="quando"></div></td>
+    <td><div style="display:flex;gap:12px;padding:6px 8px;align-items:center;font-size:12px">
+      <label style="display:flex;align-items:center;gap:4px;cursor:pointer"><input type="radio" name="rep${rn}" value="Sim"> Sim</label>
+      <label style="display:flex;align-items:center;gap:4px;cursor:pointer"><input type="radio" name="rep${rn}" value="Não"> Não</label>
+    </div></td>
+    <td class="col-x"><button type="button" class="btn-x" title="Remover linha">✕</button></td>`;
+  tr.querySelector('[data-a=oque]').textContent = acao.oque || '';
+  tr.querySelector('[data-a=quem]').textContent = acao.quem || '';
+  tr.querySelector('[data-a=quando]').textContent = acao.quando || '';
+  tr.querySelectorAll('input[type=radio]').forEach(r => r.checked = (r.value === acao.replicar));
+  tr.querySelector('.btn-x').onclick = () => {
+    const temTexto = [...tr.querySelectorAll('.cell-val')].some(c => c.innerText.trim());
+    if (temTexto && !confirm('Remover esta ação do plano?')) return;
+    tr.remove(); marcarSujo();
+  };
+  tbody.appendChild(tr);
+  if (acao !== undefined && arguments.length === 0) marcarSujo();
+}
+function lerAcoes() {
+  return [...document.querySelectorAll('#action-tbody tr')].map(tr => ({
+    oque: tr.querySelector('[data-a=oque]').innerText.trim(),
+    quem: tr.querySelector('[data-a=quem]').innerText.trim(),
+    quando: tr.querySelector('[data-a=quando]').innerText.trim(),
+    replicar: (tr.querySelector('input[type=radio]:checked') || {}).value || ''
+  })).filter(a => a.oque || a.quem || a.quando || a.replicar);
+}
+
+// ── Ishikawa (guarda o texto das opções marcadas, por M) ──────────
+function lerIshikawa() {
+  const o = {};
+  document.querySelectorAll('.ishi-m[data-m]').forEach(m => {
+    o[m.dataset.m] = [...m.querySelectorAll('input[type=checkbox]')]
+      .filter(c => c.checked).map(c => c.parentElement.textContent.trim());
+  });
+  return o;
+}
+function escreverIshikawa(dados = {}) {
+  document.querySelectorAll('.ishi-m[data-m]').forEach(m => {
+    const marcados = dados[m.dataset.m] || [];
+    m.querySelectorAll('input[type=checkbox]').forEach(c => c.checked = marcados.includes(c.parentElement.textContent.trim()));
+  });
+}
+
+// ── Fotos ─────────────────────────────────────────────────────────
+// fotos = [{ caminho?, blob?, url, legenda }] ; removidas = [caminho]
+let fotos = [];
+let fotosRemovidas = [];
+function desenharFotos() {
+  const container = document.getElementById('fotos-container');
+  container.innerHTML = '';
+  fotos.forEach((f, i) => {
+    const wrap = document.createElement('div');
+    wrap.style.cssText = 'position:relative;display:inline-block;';
+    if (!f.caminho) wrap.className = 'foto-nova';
+    const img = document.createElement('img');
+    img.src = f.url;
+    img.style.cssText = 'width:160px;height:120px;object-fit:cover;border-radius:4px;border:1px solid #ddd;display:block;cursor:zoom-in';
+    img.onclick = () => window.open(f.url, '_blank');
+    const caption = document.createElement('div');
+    caption.contentEditable = 'true';
+    caption.style.cssText = 'font-size:10px;color:#555;text-align:center;margin-top:3px;font-family:Arial,sans-serif;outline:none;border-bottom:1px solid #ddd;min-width:160px;max-width:160px;min-height:14px';
+    caption.textContent = f.legenda || '';
+    caption.oninput = () => { f.legenda = caption.innerText.trim(); };
+    const btn = document.createElement('button');
+    btn.className = 'foto-x';
+    btn.type = 'button';
+    btn.textContent = '✕';
+    btn.title = 'Remover foto';
+    btn.style.cssText = 'position:absolute;top:3px;right:3px;background:rgba(0,0,0,0.55);color:#fff;border:none;border-radius:50%;width:20px;height:20px;font-size:10px;cursor:pointer;line-height:1;padding:0;font-family:Arial,sans-serif;';
+    btn.onclick = () => {
+      if (!confirm('Remover esta foto?')) return;
+      if (f.caminho) fotosRemovidas.push(f.caminho);
+      fotos.splice(i, 1); desenharFotos(); marcarSujo();
+    };
+    wrap.append(img, caption, btn);
+    container.appendChild(wrap);
+  });
+}
+async function adicionarFotos(input) {
+  const arquivos = Array.from(input.files);
+  input.value = '';
+  for (const arq of arquivos) {
+    try {
+      const blob = await SST.comprimirImagem(arq);
+      fotos.push({ blob, url: URL.createObjectURL(blob), legenda: '' });
+    } catch (e) { toast(`Não foi possível usar a foto ${arq.name}.`, 'erro'); }
+  }
+  desenharFotos(); marcarSujo();
+  if (!registro.id) toast('As fotos serão enviadas quando você salvar.', '', 3000);
+}
+async function enviarFotos(id) {
+  for (const f of fotos) {
+    if (f.caminho || !f.blob) continue;
+    const caminho = `${id}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.jpg`;
+    const { error } = await sb.storage.from('fotos').upload(caminho, f.blob, { contentType: 'image/jpeg' });
+    if (error) throw error;
+    f.caminho = caminho; delete f.blob;
+  }
+  if (fotosRemovidas.length) {
+    await sb.storage.from('fotos').remove(fotosRemovidas);
+    fotosRemovidas = [];
+  }
+}
+
+// ── Máscara de data ───────────────────────────────────────────────
+function mascaraData(el) {
+  el.addEventListener('input', function () {
+    let v = this.value.replace(/\D/g, '').slice(0, 8);
+    if (v.length >= 5) v = v.slice(0, 2) + '/' + v.slice(2, 4) + '/' + v.slice(4);
+    else if (v.length >= 3) v = v.slice(0, 2) + '/' + v.slice(2);
+    this.value = v;
+  });
+  el.addEventListener('blur', function () {
+    const ok = !this.value || SST.dataISO(this.value);
+    this.style.borderColor = ok ? '' : '#c0392b';
+    this.title = ok ? '' : 'Data inválida';
+  });
+}
+
+// ── Estado do registro ────────────────────────────────────────────
+let registro = { id: null, numero: null };
+let carregandoForm = false;
+function marcarSujo() {
+  if (carregandoForm) return;
+  SST.alteracoes.sujo = true;
+  const e = document.getElementById('estado');
+  e.textContent = '● Alterações não salvas'; e.className = 'estado sujo';
+}
+function marcarLimpo(txt) {
+  SST.alteracoes.sujo = false;
+  const e = document.getElementById('estado');
+  e.textContent = txt || ''; e.className = 'estado';
+}
+function mostrarNumero() {
+  const n = document.getElementById('num-doc');
+  if (registro.numero) {
+    n.textContent = registro.numero; n.className = 'num-doc';
+    document.getElementById('numero').value = registro.numero;
+    document.getElementById('unidade').disabled = true;
+    document.getElementById('unidade').title = 'A unidade faz parte do número e não pode ser trocada depois de salvar.';
+    document.getElementById('b-5pq').hidden = false;
+    document.title = registro.numero + ' — NIAT';
+  }
+}
+
+function coletar() {
+  const campos = SST.lerCampos(document.getElementById('form'));
+  return {
+    campos,
+    ishikawa: lerIshikawa(),
+    acoes: lerAcoes(),
+    fotos: fotos.filter(f => f.caminho).map(f => ({ caminho: f.caminho, legenda: f.legenda || '' }))
+  };
+}
+
+async function salvar() {
+  const b = document.getElementById('b-salvar');
+  const dados = coletar();
+  const c = dados.campos;
+  if (!c.unidade) { toast('Escolha a Unidade / Complexo antes de salvar. Ela faz parte do número do relatório.', 'erro', 5000); document.getElementById('unidade').focus(); return; }
+  if (c.data && !SST.dataISO(c.data)) { toast('A data da ocorrência está inválida. Use DD/MM/AAAA.', 'erro'); return; }
+  b.disabled = true; b.textContent = '⏳ Salvando…';
+  try {
+    const linha = {
+      classificacao: c.classificacao || null,
+      data_ocorrencia: SST.dataISO(c.data),
+      envolvido: [c.e1_nome, c.e2_nome].filter(Boolean).join(' / '),
+      resumo: (c.w_oque || c.descricao || '').slice(0, 300),
+      situacao: document.getElementById('situacao').value
+    };
+    if (!registro.id) {
+      const { data, error } = await sb.from('relatorios')
+        .insert({ ...linha, tipo: 'niat', unidade: c.unidade, dados })
+        .select('id,numero').single();
+      if (error) throw error;
+      registro = data;
+      history.replaceState(null, '', `niat.html?id=${data.id}`);
+      mostrarNumero();
+    }
+    await enviarFotos(registro.id);
+    const dadosFinais = coletar();
+    const { error } = await sb.from('relatorios').update({ ...linha, dados: dadosFinais }).eq('id', registro.id);
+    if (error) throw error;
+    desenharFotos();
+    marcarLimpo('✔ Salvo às ' + new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }));
+    toast(`Relatório ${registro.numero} salvo.`, 'ok');
+  } catch (e) {
+    toast('Não foi possível salvar: ' + traduzErro(e), 'erro', 6000);
+  } finally {
+    b.disabled = false; b.textContent = '💾 Salvar';
+  }
+}
+
+async function carregar(id) {
+  const { data, error } = await sb.from('relatorios').select('*').eq('id', id).eq('tipo', 'niat').maybeSingle();
+  if (error) throw error;
+  if (!data) return false;
+  registro = { id: data.id, numero: data.numero };
+  const d = data.dados || {};
+  const campos = { ...(d.campos || {}), unidade: data.unidade };
+  carregandoForm = true;
+  SST.escreverCampos(document.getElementById('form'), campos);
+  setSeverity(campos.classificacao || data.classificacao || 'grave');
+  escreverIshikawa(d.ishikawa);
+  document.getElementById('action-tbody').innerHTML = '';
+  (d.acoes && d.acoes.length ? d.acoes : [{}, {}]).forEach(a => addRow(a));
+  document.getElementById('situacao').value = data.situacao;
+  const caminhos = (d.fotos || []).map(f => f.caminho);
+  const urls = await SST.urlsFotos(caminhos).catch(() => ({}));
+  fotos = (d.fotos || []).map(f => ({ ...f, url: urls[f.caminho] || '' }));
+  desenharFotos();
+  carregandoForm = false;
+  mostrarNumero();
+  marcarLimpo('Atualizado em ' + SST.dataHoraBR(data.atualizado_em));
+  return true;
+}
+
+// ── Início ────────────────────────────────────────────────────────
+(async function iniciar() {
+  let perfil;
+  try { perfil = await SST.exigirLogin(); } catch (e) { return; }
+  await SST.barra(perfil, 'niat');
+  await SST.preencherUnidades(document.getElementById('unidade'));
+  mascaraData(document.getElementById('data-ocorrencia'));
+
+  const form = document.getElementById('form');
+  form.addEventListener('input', marcarSujo);
+  form.addEventListener('change', marcarSujo);
+  document.getElementById('situacao').addEventListener('change', marcarSujo);
+  window.addEventListener('beforeunload', e => { if (SST.alteracoes.sujo) { e.preventDefault(); e.returnValue = ''; } });
+  document.getElementById('b-salvar').onclick = salvar;
+  document.addEventListener('keydown', e => {
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') { e.preventDefault(); salvar(); }
+  });
+  document.getElementById('b-5pq').onclick = async () => {
+    if (SST.alteracoes.sujo) await salvar();
+    const { data } = await sb.from('relatorios').select('id').eq('tipo', '5pq').eq('niat_id', registro.id).limit(1);
+    location.href = data && data.length ? `cincoporques.html?id=${data[0].id}` : `cincoporques.html?niat=${registro.id}`;
+  };
+
+  const id = SST.param('id');
+  try {
+    if (id) {
+      const ok = await carregar(id);
+      if (!ok) {
+        document.getElementById('carregando').innerHTML = '<div class="vazio"><div class="ic">🔒</div>Relatório não encontrado ou você não tem permissão para abri-lo.<br><br><a class="btn primario" href="relatorios.html">Ir para a lista</a></div>';
+        return;
+      }
+    } else {
+      carregandoForm = true;
+      document.getElementById('data-emissao').textContent = SST.hojeBR();
+      addRow({}); addRow({});
+      setSeverity('grave');
+      carregandoForm = false;
+      marcarLimpo('Novo relatório — o número é gerado ao salvar');
+    }
+  } catch (e) {
+    toast(traduzErro(e), 'erro', 6000);
+  }
+  document.getElementById('carregando').hidden = true;
+  document.getElementById('conteudo').hidden = false;
+})();

@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Análise dos 5 Porquês</title>
+<link rel="icon" href="img/logo-db.png">
+<link rel="stylesheet" href="css/app.css">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: Arial, sans-serif; background: #e8e8e8; color: #1a1a1a; padding: 20px; font-size: 13px; }
+
+/* TOOLBAR */
+.toolbar { max-width: 1200px; margin: 0 auto 14px; display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.toolbar button, .toolbar label, .toolbar select {
+  font-family: Arial, sans-serif; font-size: 12px; padding: 7px 14px;
+  border-radius: 5px; border: 1px solid #bbb; cursor: pointer; background: #fff;
+}
+.toolbar button.primary { background: #1a3a5c; color: #fff; border-color: #1a3a5c; font-weight: bold; }
+.toolbar button:hover { opacity: 0.85; }
+.toolbar label { background: #f5f5f5; font-weight: bold; pointer-events: none; }
+
+/* PAGE */
+.page { background: #fff; max-width: 1200px; margin: 0 auto; box-shadow: 0 4px 24px rgba(0,0,0,0.14); border-top: 5px solid #1a3a5c; }
+
+/* HEADER */
+.header { background: #fff; border-bottom: 2px solid #e0e0e0; padding: 14px 28px; display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.header img.logo { height: 56px; width: auto; object-fit: contain; flex-shrink: 0; }
+.header-center { text-align: center; flex: 1; }
+.header-center .doc-title { font-size: 16px; font-weight: 900; letter-spacing: 1px; text-transform: uppercase; color: #1a3a5c; }
+.header-center .doc-code { font-size: 10px; color: #888; margin-top: 3px; }
+.header-meta { font-size: 11px; color: #555; text-align: right; line-height: 2.2; }
+.editable-inline { outline: none; border-bottom: 1px solid #ccc; min-width: 80px; display: inline-block; font-size: 11px; }
+.editable-inline:focus { border-bottom-color: #1a3a5c; }
+
+/* SEVERITY BAND */
+.severity-band { padding: 9px 28px; font-size: 12px; font-weight: 900; letter-spacing: 1px; text-transform: uppercase; text-align: center; background: #B71247; color: #fff; cursor: pointer; user-select: none; }
+.severity-band.leve { background: #E07B00; }
+.severity-band.incidente { background: #2e7d32; }
+.sev-hint { font-size: 9px; font-weight: normal; opacity: 0.75; margin-left: 8px; text-transform: none; }
+
+/* SECTION */
+.section { padding: 16px 28px; border-bottom: 1px solid #e8e8e8; }
+.section-title { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; color: #1a3a5c; margin-bottom: 12px; padding-bottom: 5px; border-bottom: 2px solid #1a3a5c; }
+
+/* ID GRID */
+.id-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+.id-field label { display: block; font-size: 9px; font-weight: 700; text-transform: uppercase; color: #999; margin-bottom: 4px; }
+.id-field .val { background: #f5f5f5; border-radius: 4px; padding: 6px 9px; min-height: 28px; font-size: 12px; outline: none; border: 1px solid transparent; width: 100%; font-family: Arial, sans-serif; }
+.id-field .val:focus { border-color: #1a3a5c; background: #eef3f8; }
+
+/* FENÔMENO */
+.fenomeno-box { background: #f0f4f8; border-left: 5px solid #1a3a5c; border-top: none; border-right: none; border-bottom: none; padding: 10px 14px; font-size: 13px; line-height: 1.6; min-height: 52px; outline: none; border-radius: 0 4px 4px 0; width: 100%; resize: vertical; font-family: Arial, sans-serif; color: #1a1a1a; }
+.fenomeno-box:focus { background: #e8eef5; }
+.fenomeno-box::placeholder { color: #aaa; font-style: italic; }
+
+/* PROBLEMA ÚNICO */
+.problema-section { padding: 14px 28px 16px; border-bottom: 1px solid #e8e8e8; }
+.problema-label { font-size: 9px; font-weight: 700; text-transform: uppercase; color: #999; margin-bottom: 4px; }
+.problema-box { background: #eef3f8; border-top: 1.5px solid #c5cfe0; border-right: 1.5px solid #c5cfe0; border-bottom: 1.5px solid #c5cfe0; border-left: 5px solid #1a3a5c; padding: 10px 14px; font-size: 13px; font-weight: bold; color: #1a3a5c; line-height: 1.6; min-height: 44px; outline: none; border-radius: 0 4px 4px 0; width: 100%; resize: vertical; font-family: Arial, sans-serif; }
+.problema-box:focus { background: #e0eaf5; }
+.problema-box::placeholder { color: #9aafc7; font-weight: normal; font-style: italic; }
+
+/* ══════════════════════════════════
+   SEÇÃO 3 — ANÁLISE DOS 5 PORQUÊS
+══════════════════════════════════ */
+.analise-section { padding: 16px 28px 24px; }
+
+/* Bloco de cadeia */
+.cadeia-bloco {
+  background: #f4f4f4;
+  border: 1px solid #d8d8d8;
+  border-radius: 8px;
+  margin-bottom: 16px;
+  overflow: visible;
+}
+
+/* Cabeçalho da cadeia */
+.cadeia-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px 8px;
+}
+.cadeia-titulo {
+  font-size: 13px;
+  font-weight: 700;
+  color: #333;
+}
+.cadeia-head-btns { display: flex; gap: 8px; }
+
+.btn-cadeia {
+  font-family: Arial, sans-serif;
+  font-size: 11px;
+  font-weight: bold;
+  padding: 4px 12px;
+  border-radius: 5px;
+  cursor: pointer;
+  border: 1.5px solid;
+  white-space: nowrap;
+}
+.btn-add-l { background: #fff; color: #2e7d32; border-color: #2e7d32; }
+.btn-add-l:hover { background: #f0fbf0; }
+.btn-del-l { background: #fff; color: #c0392b; border-color: #c0392b; }
+.btn-del-l:hover { background: #fff0ee; }
+.btn-del-cadeia { background: #fff; color: #7b1010; border-color: #7b1010; }
+.btn-del-cadeia:hover { background: #fff5f5; }
+
+/* Grade de colunas */
+.grade-wrap { padding: 0 10px 10px; }
+
+/* Linha de cabeçalhos das colunas */
+.col-headers {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 4px;
+  padding: 0 24px 0 0; /* espaço p/ botão X */
+}
+.col-head {
+  border-radius: 5px;
+  padding: 6px 4px;
+  font-size: 10px;
+  font-weight: 700;
+  text-align: center;
+  color: #fff;
+  flex-shrink: 0;
+}
+/* larguras fixas — devem espelhar as células abaixo */
+.col-head.w-prob  { width: 90px;  background: #1a3a5c; }
+.col-head.w-pq    { flex: 1;      background: #2e7d32; }
+.col-head.w-acao  { width: 130px; background: #b8870a; }
+.col-head.w-resp  { width: 100px; background: #8a6510; }
+.col-head.w-prazo { width: 80px;  background: #6a4e0e; }
+
+/* Linha de dados */
+.grade-linha {
+  display: flex;
+  align-items: stretch;
+  gap: 4px;
+  margin-bottom: 4px;
+  position: relative;
+  padding-right: 24px; /* espaço para o X */
+}
+
+/* Célula editável */
+.mcell {
+  border: 1.5px solid #d8d8d8;
+  border-radius: 5px;
+  padding: 6px 7px;
+  min-height: 52px;
+  font-size: 12px;
+  line-height: 1.45;
+  outline: none;
+  font-family: Arial, sans-serif;
+  color: #1a1a1a;
+  background: #fff;
+  word-break: break-word;
+  flex-shrink: 0;
+  resize: none;
+}
+.mcell:focus { border-color: #1a3a5c; background: #f5f8fc; }
+
+/* Larguras das células — espelham os col-heads */
+.mcell.w-prob  { width: 90px;  background: #e8ecf2; color: #1a3a5c; border-color: #c0cad8; }
+.mcell.w-pq    { flex: 1; }
+.mcell.w-acao  { width: 130px; }
+.mcell.w-resp  { width: 100px; }
+.mcell.w-prazo { width: 80px;  }
+
+/* Célula oculta (problema em linhas extras — não renderizada) */
+
+/* Botão X da linha */
+.btn-x-linha {
+  position: absolute;
+  right: 2px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: #c0392b;
+  font-size: 12px;
+  font-weight: bold;
+  cursor: pointer;
+  padding: 2px 4px;
+  opacity: 0;
+  transition: opacity 0.15s;
+  font-family: Arial, sans-serif;
+  line-height: 1;
+}
+.grade-linha:hover .btn-x-linha { opacity: 1; }
+
+/* Botão nova cadeia */
+.btn-nova-cadeia {
+  margin-top: 4px;
+  background: #1a3a5c;
+  color: #fff;
+  border: none;
+  padding: 9px 22px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: bold;
+  cursor: pointer;
+  font-family: Arial, sans-serif;
+}
+.btn-nova-cadeia:hover { background: #142e4e; }
+
+/* RODAPÉ */
+.footer { background: #4a4a4a; color: rgba(255,255,255,0.9); padding: 16px 28px; display: flex; justify-content: space-between; align-items: center; gap: 16px; }
+.footer-field { display: flex; flex-direction: column; gap: 5px; flex: 1; }
+.footer-field label { font-size: 9px; text-transform: uppercase; color: rgba(255,255,255,0.55); letter-spacing: 0.5px; }
+.footer-field .fval { color: #fff; font-weight: bold; background: rgba(255,255,255,0.08); border: none; border-bottom: 1.5px solid rgba(255,255,255,0.35); outline: none; font-family: Arial, sans-serif; font-size: 13px; padding: 4px 6px; border-radius: 2px 2px 0 0; min-width: 160px; }
+.footer-field .fval:focus { background: rgba(255,255,255,0.15); border-bottom-color: #C9A227; }
+.footer-field .fval::placeholder { color: rgba(255,255,255,0.3); font-weight: normal; font-style: italic; }
+
+@media print {
+    input::placeholder, textarea::placeholder { color: transparent !important; }
+    select { appearance: none; -webkit-appearance: none; }
+  body { background: #fff; padding: 0; }
+  .toolbar, .cadeia-head-btns, .btn-nova-cadeia, .btn-x-linha { display: none !important; }
+  .page { box-shadow: none; }
+  .mcell { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .cadeia-bloco { break-inside: avoid; }
+}
+
+/* ── SISTEMA: barra de ações ── */
+body { padding: 0; }
+#conteudo { padding: 0 20px 40px; }
+.toolbar { position: sticky; top: 56px; z-index: 40; background: #e8e8e8; padding: 8px 0; margin-bottom: 6px; }
+.toolbar button, .toolbar select { padding: 7px 10px !important; }
+  .toolbar #sev-select { max-width: 175px; }
+  .toolbar #situacao { max-width: 125px; }
+  .toolbar .estado { flex-basis: 100%; text-align: right; margin: -4px 0 0; font-size: 11px; }
+  .toolbar .num-doc { font-family: Consolas, "Courier New", monospace; font-weight: bold; font-size: 14px; color: #1a3a5c; padding: 0 6px; }
+.toolbar .num-doc.novo { font-family: Arial, sans-serif; font-weight: normal; font-size: 12px; color: #777; }
+.toolbar .estado { font-size: 12px; color: #777; margin-left: auto; }
+.toolbar .estado.sujo { color: #E07B00; font-weight: bold; }
+.toolbar button:disabled { opacity: .5; cursor: not-allowed; }
+.id-field select.val:disabled { color: #1a1a1a; opacity: 1; background: #eceff3; cursor: not-allowed; }
+@media print { .toolbar { display: none !important; } }
+</style>
+</head>
+<body>
+<header id="sst-appbar"></header>
+<div id="carregando" class="carregando"><div><div class="giro"></div>Carregando…</div></div>
+
+<div id="conteudo" hidden>
+<div class="toolbar">
+  <span class="num-doc novo" id="num-doc">Novo relatório</span>
+  <select id="sev-select" onchange="setSeverity(this.value)" title="Classificação">
+    <option value="grave">🔴 Acidente Grave</option>
+    <option value="leve">🟠 Acidente Leve</option>
+    <option value="incidente">🟢 Incidente / Quase Acidente</option>
+  </select>
+  <select id="situacao" title="Situação do relatório">
+    <option value="rascunho">✏️ Rascunho</option>
+    <option value="concluido">✅ Concluído</option>
+  </select>
+  <button class="primary" id="b-salvar" type="button">💾 Salvar</button>
+  <button type="button" onclick="window.print()">🖨️ Imprimir / PDF</button>
+  <button type="button" id="b-niat" hidden>📝 Abrir NIAT</button>
+  <span class="estado" id="estado"></span>
+</div>
+
+<div class="page" id="form">
+
+  <!-- HEADER -->
+  <div class="header">
+    <img class="logo" src="img/logo-db.png" alt="DB Agronegócios">
+    <div class="header-center">
+      <div class="doc-title">Análise dos 5 Porquês</div>
+      <div class="doc-code">FOR 005-002 &nbsp;·&nbsp; DB Agronegócios &nbsp;·&nbsp; Segurança do Trabalho</div>
+    </div>
+    <div class="header-meta">
+      <div><span style="color:#999;font-size:9px;text-transform:uppercase">Nº&nbsp;</span><span class="editable-inline" id="numero-cab" style="font-weight:bold;color:#1a3a5c">—</span></div>
+      <div><span style="color:#999;font-size:9px;text-transform:uppercase">Data emissão&nbsp;</span><span class="editable-inline" id="data-emissao" data-f="data_emissao" contenteditable="true"></span></div>
+    </div>
+  </div>
+
+  <!-- SEVERITY -->
+  <div class="severity-band" id="sev-band" onclick="cycleSeverity()">
+    ⚠ ACIDENTE GRAVE
+    <span class="sev-hint">(clique para alternar)</span>
+  </div>
+
+  <!-- 1. IDENTIFICAÇÃO -->
+  <div class="section">
+    <div class="section-title">1. Identificação</div>
+    <div class="id-grid" style="grid-template-columns: repeat(5, 1fr)">
+      <div class="id-field"><label>Nº do Relatório (NIAT)</label>
+        <select class="val" id="niat-vinculo" title="NIAT que deu origem a esta análise"></select>
+      </div>
+      <div class="id-field"><label>Data da ocorrência</label><input type="text" class="val" id="data-ocorrencia" data-f="data_ocorrencia" placeholder="DD/MM/AAAA" maxlength="10" inputmode="numeric"></div>
+      <div class="id-field"><label>Unidade</label>
+        <select class="val" id="unidade" data-f="unidade"></select>
+      </div>
+      <div class="id-field"><label>Nome do envolvido</label><input type="text" class="val" data-f="envolvido"></div>
+      <div class="id-field"><label>Função</label><input type="text" class="val" data-f="funcao"></div>
+    </div>
+  </div>
+
+  <!-- 2. FENÔMENO -->
+  <div class="section">
+    <div class="section-title">2. Descrição da Ocorrência (Fenômeno)</div>
+    <textarea class="fenomeno-box" data-f="fenomeno" placeholder="Descreva a ocorrência."></textarea>
+  </div>
+
+  <!-- CADEIAS -->
+  <div class="analise-section" id="analise-section">
+    <div class="section-title" style="margin: 0 0 14px">3. Análise dos 5 Porquês</div>
+    <div id="cadeias-container"></div>
+    <button class="btn-nova-cadeia" onclick="novaCadeia()">+ Nova cadeia</button>
+  </div>
+
+  <!-- RODAPÉ -->
+  <div class="footer">
+    <div class="footer-field"><label>Técnico de Segurança</label><input class="fval" type="text" data-f="tecnico" placeholder="Nome"></div>
+    <div class="footer-field"><label>Gerente Local</label><input class="fval" type="text" data-f="gerente" placeholder="Nome"></div>
+    <div class="footer-field"><label>Data de emissão</label><input class="fval" id="data-emissao-footer" data-f="data_emissao_rodape" type="text" placeholder="DD/MM/AAAA" maxlength="10" inputmode="numeric"></div>
+  </div>
+
+</div>
+</div><!-- /conteudo -->
+
+<script src="js/vendor/supabase.js"></script>
+<script src="js/config.js"></script>
+<script src="js/app.js"></script>
+<script src="js/form-5pq.js"></script>
+</body>
+</html>

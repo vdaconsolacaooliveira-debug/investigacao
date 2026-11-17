@@ -1,0 +1,654 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NIAT — Notificação Interna de Acidente do Trabalho</title>
+<link rel="icon" href="img/logo-db.png">
+<link rel="stylesheet" href="css/app.css">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: Arial, sans-serif;
+    background: #e8e8e8;
+    color: #1a1a1a;
+    padding: 24px;
+    font-size: 13px;
+  }
+
+  .page {
+    background: #fff;
+    max-width: 860px;
+    margin: 0 auto;
+    box-shadow: 0 4px 24px rgba(0,0,0,0.18);
+  }
+
+  /* ── TOOLBAR ── */
+  .toolbar {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    align-items: center;
+    margin-bottom: 16px;
+    max-width: 860px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+  .toolbar button, .toolbar select, .toolbar label {
+    font-family: Arial, sans-serif;
+    font-size: 13px;
+    padding: 7px 14px;
+    border-radius: 5px;
+    border: 1px solid #bbb;
+    cursor: pointer;
+    background: #fff;
+  }
+  .toolbar button.primary { background: #1a3a5c; color: #fff; border-color: #1a3a5c; font-weight: bold; }
+  .toolbar button:hover { opacity: 0.85; }
+  .toolbar label { background: #f5f5f5; font-weight: bold; pointer-events: none; }
+
+  /* ── HEADER ── */
+  .header {
+    background: #fff;
+    color: #1a1a1a;
+    border-bottom: 2px solid #e0e0e0;
+    padding: 16px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+  }
+  .header-center { text-align: center; flex: 1; }
+  .header-center .doc-title { font-size: 18px; font-weight: 900; letter-spacing: 1.5px; text-transform: uppercase; color: #1a3a5c; }
+  .header-center .doc-code { font-size: 11px; color: #777; margin-top: 3px; }
+  .header-meta { font-size: 11px; color: #555; line-height: 1.9; text-align: right; }
+  .header-meta .editable { background: transparent; border: none; border-bottom: 1px solid #bbb; color: #1a1a1a; font-family: Arial, sans-serif; font-size: 12px; outline: none; width: 90px; }
+
+  /* ── SEVERITY BAND ── */
+  .severity-band {
+    padding: 10px 24px;
+    font-size: 14px;
+    font-weight: 900;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    text-align: center;
+    background: #B71247;
+    color: #fff;
+    cursor: pointer;
+    user-select: none;
+  }
+  .severity-band.leve { background: #E07B00; }
+  .severity-band.incidente { background: #2e7d32; color: #fff; }
+  .sev-hint { font-size: 10px; font-weight: normal; letter-spacing: 0; opacity: 0.7; margin-left: 8px; text-transform: none; }
+
+  /* ── SECTIONS ── */
+  .section { padding: 14px 24px; border-bottom: 1px solid #e0e0e0; }
+  .section:last-child { border-bottom: none; }
+  .section-title {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: #1a3a5c;
+    margin-bottom: 10px;
+    padding-bottom: 4px;
+    border-bottom: 2px solid #1a3a5c;
+  }
+
+  /* ── GRIDS ── */
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; }
+
+  .field label {
+    display: block;
+    font-size: 9px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    color: #999;
+    margin-bottom: 4px;
+  }
+  .field .val {
+    background: #f5f5f5;
+    border-radius: 3px;
+    padding: 5px 8px;
+    min-height: 28px;
+    font-size: 12px;
+    font-family: Arial, sans-serif;
+    outline: none;
+    border: 1px solid #e0e0e0;
+    width: 100%;
+    color: #1a1a1a;
+    display: block;
+  }
+  .field .val:focus { border-color: #1a3a5c; background: #eef3f8; }
+  .field input.val { box-sizing: border-box; }
+  .field select {
+    width: 100%; font-family: Arial, sans-serif; font-size: 12px;
+    padding: 5px 8px; border-radius: 3px; border: 1px solid #e0e0e0;
+    background: #f5f5f5; outline: none; color: #1a1a1a; min-height: 28px;
+  }
+  .field select:focus { border-color: #1a3a5c; background: #eef3f8; }
+
+  /* ── ENVOLVIDOS ── */
+  .envolvidos-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .envolvido-card {
+    border: 1px solid #ddd;
+    border-radius: 5px;
+    padding: 12px;
+    background: #fafafa;
+  }
+  .envolvido-title { font-size: 11px; font-weight: 700; color: #1a3a5c; margin-bottom: 8px; text-transform: uppercase; }
+  .envolvido-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+
+  /* ── 5W1H ── */
+  .w1h-grid { display: flex; flex-direction: column; gap: 7px; }
+  .w-item { display: flex; gap: 8px; align-items: flex-start; }
+  .w-label {
+    background: #1a3a5c;
+    color: #fff;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 4px 8px;
+    border-radius: 3px;
+    white-space: nowrap;
+    flex-shrink: 0;
+    min-width: 110px;
+    text-align: center;
+    line-height: 1.4;
+  }
+  .w-value {
+    flex: 1;
+    background: #f5f5f5;
+    border-radius: 3px;
+    padding: 5px 8px;
+    font-size: 13px;
+    min-height: 28px;
+    outline: none;
+    border: 1px solid transparent;
+    line-height: 1.5;
+  }
+  .w-value:focus { border-color: #1a3a5c; background: #eef3f8; }
+
+  /* ── TEXTO LONGO ── */
+  .textarea {
+    width: 100%;
+    background: #f5f5f5;
+    border-radius: 3px;
+    padding: 8px 10px;
+    min-height: 70px;
+    font-size: 13px;
+    outline: none;
+    border: 1px solid transparent;
+    line-height: 1.6;
+  }
+  .textarea:focus { border-color: #1a3a5c; background: #eef3f8; }
+
+  /* ── ISHIKAWA ── */
+  .ishikawa-title { font-size: 12px; font-weight: bold; color: #1a3a5c; margin-bottom: 4px; padding: 6px 10px; background: #eef3f8; border-radius: 4px; }
+  .ishikawa-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .ishi-m {
+    border: 1px solid #d0d8e4;
+    border-radius: 5px;
+    overflow: hidden;
+  }
+  .ishi-m-header {
+    background: #1a3a5c;
+    color: #fff;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 6px 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .ishi-m-body { padding: 8px 10px; display: flex; flex-direction: column; gap: 5px; }
+  .ishi-option { display: flex; align-items: flex-start; gap: 7px; font-size: 12px; line-height: 1.4; cursor: pointer; }
+  .ishi-option input[type=checkbox] { margin-top: 2px; flex-shrink: 0; accent-color: #1a3a5c; width: 14px; height: 14px; cursor: pointer; }
+  .ishi-option:hover { color: #1a3a5c; }
+
+  /* ── CAUSAS ── */
+  .causas-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; }
+  .causa-block { border-left: 4px solid #1a3a5c; padding: 8px 10px; background: #f5f5f5; border-radius: 0 4px 4px 0; }
+  .causa-label { font-size: 10px; font-weight: 700; text-transform: uppercase; color: #1a3a5c; margin-bottom: 5px; }
+
+  /* ── PLANO DE AÇÃO ── */
+  table.action-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  table.action-table th {
+    background: #1a3a5c;
+    color: #fff;
+    padding: 7px 8px;
+    text-align: left;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  table.action-table td {
+    border: 1px solid #ddd;
+    padding: 0;
+    vertical-align: top;
+  }
+  table.action-table td .cell-val {
+    width: 100%;
+    display: block;
+    padding: 6px 8px;
+    min-height: 32px;
+    outline: none;
+    font-size: 12px;
+    line-height: 1.4;
+  }
+  table.action-table td .cell-val:focus { background: #eef3f8; }
+  table.action-table tr:nth-child(even) td { background: #fafafa; }
+  .btn-add-row {
+    margin-top: 8px;
+    background: #1a3a5c;
+    color: #fff;
+    border: none;
+    padding: 7px 16px;
+    border-radius: 4px;
+    font-size: 12px;
+    cursor: pointer;
+    font-family: Arial, sans-serif;
+  }
+  .btn-add-row:hover { opacity: 0.85; }
+
+  /* ── FOOTER ── */
+  .footer {
+    background: #1a3a5c;
+    color: rgba(255,255,255,0.85);
+    padding: 12px 24px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+    font-size: 12px;
+  }
+  .footer-field { display: flex; flex-direction: column; gap: 3px; }
+  .footer-field label { font-size: 10px; text-transform: uppercase; color: rgba(255,255,255,0.55); }
+  .footer-field .val { color: #fff; font-weight: bold; background: transparent; border: none; outline: none; font-family: Arial, sans-serif; font-size: 12px; }
+  .footer-field .val:focus { border-bottom: 1px solid rgba(255,255,255,0.5); }
+
+  /* ── PRINT ── */
+  @media print {
+    input::placeholder, textarea::placeholder { color: transparent !important; }
+    select { appearance: none; -webkit-appearance: none; }
+    body { background: #fff; padding: 0; font-size: 11px; }
+    .toolbar { display: none; }
+    .page { box-shadow: none; max-width: 100%; }
+    .field .val, .w-value, .textarea, .cell-val { border: none !important; background: transparent !important; }
+    .btn-add-row { display: none; }
+    .ishi-option { font-size: 11px; }
+    .sev-hint { display: none; }
+  }
+
+  /* ── SISTEMA: barra de ações ── */
+  body { padding: 0; }
+  #conteudo { padding: 0 24px 40px; }
+  .toolbar { position: sticky; top: 56px; z-index: 40; background: #e8e8e8; padding: 8px 0; margin-bottom: 8px; }
+  .toolbar button, .toolbar select { padding: 7px 10px !important; }
+  .toolbar #sev-select { max-width: 175px; }
+  .toolbar #situacao { max-width: 125px; }
+  .toolbar .estado { flex-basis: 100%; text-align: right; margin: -4px 0 0; font-size: 11px; }
+  .toolbar .num-doc { font-family: Consolas, "Courier New", monospace; font-weight: bold; font-size: 14px; color: #1a3a5c; padding: 0 6px; }
+  .toolbar .num-doc.novo { font-family: Arial, sans-serif; font-weight: normal; font-size: 12px; color: #777; }
+  .toolbar .estado { font-size: 12px; color: #777; margin-left: auto; }
+  .toolbar .estado.sujo { color: #E07B00; font-weight: bold; }
+  .toolbar button:disabled { opacity: .5; cursor: not-allowed; }
+  .field select:disabled { color: #1a1a1a; opacity: 1; background: #eceff3; cursor: not-allowed; }
+  .btn-x { background: none; border: none; color: #c0392b; cursor: pointer; font-weight: bold; font-size: 13px; padding: 6px; width: 100%; }
+  .btn-x:hover { background: #fff0ee; }
+  .foto-nova img { outline: 2px dashed #E07B00; outline-offset: 2px; }
+  @media print {
+    .toolbar, .col-x, .btn-x, .btn-foto, .foto-x { display: none !important; }
+    .page { box-shadow: none !important; }
+  }
+</style>
+</head>
+<body>
+<header id="sst-appbar"></header>
+<div id="carregando" class="carregando"><div><div class="giro"></div>Carregando…</div></div>
+
+<div id="conteudo" hidden>
+<div class="toolbar">
+  <span class="num-doc novo" id="num-doc">Novo relatório</span>
+  <select id="sev-select" onchange="setSeverity(this.value)" title="Classificação">
+    <option value="grave">🔴 Acidente Grave</option>
+    <option value="leve">🟠 Acidente Leve</option>
+    <option value="incidente">🟢 Incidente / Quase Acidente</option>
+  </select>
+  <select id="situacao" title="Situação do relatório">
+    <option value="rascunho">✏️ Rascunho</option>
+    <option value="concluido">✅ Concluído</option>
+  </select>
+  <button class="primary" id="b-salvar" type="button">💾 Salvar</button>
+  <button type="button" onclick="window.print()">🖨️ Imprimir / PDF</button>
+  <button type="button" id="b-5pq" hidden>❓ Abrir 5 Porquês</button>
+  <span class="estado" id="estado"></span>
+</div>
+
+<div class="page" id="form">
+
+  <!-- HEADER -->
+  <div class="header">
+    <img src="img/logo-db.png" alt="DB Agronegócios" style="height:60px;width:auto;object-fit:contain;flex-shrink:0;">
+    <div class="header-center">
+      <div class="doc-title">NIAT — Notificação de Incidentes e Acidentes do Trabalho</div>
+      <div class="doc-code">FOR 005-001 — DB Agronegócios — Segurança do Trabalho</div>
+    </div>
+    <div class="header-meta">
+      Data emissão <span id="data-emissao" data-f="data_emissao" class="editable" contenteditable="true" style="border-bottom:1px solid #bbb;padding-bottom:1px;color:#1a1a1a;display:inline-block;min-width:80px"></span>
+    </div>
+  </div>
+
+  <!-- SEVERITY -->
+  <div class="severity-band" id="sev-band" onclick="cycleSeverity()">
+    ⚠ ACIDENTE GRAVE
+    <span class="sev-hint">(clique para alternar classificação)</span>
+  </div>
+
+  <!-- IDENTIFICAÇÃO -->
+  <div class="section">
+    <div class="section-title">1. Identificação da Ocorrência</div>
+
+    <div class="grid-4" style="margin-bottom:8px;grid-template-columns:repeat(5,1fr)">
+      <div class="field"><label>Nº do Relatório</label><input type="text" class="val" id="numero" readonly placeholder="Gerado ao salvar" style="font-weight:bold;color:#1a3a5c"></div>
+      <div class="field"><label>Data</label><input type="text" class="val" data-f="data" id="data-ocorrencia" placeholder="DD/MM/AAAA" maxlength="10" inputmode="numeric"></div>
+      <div class="field"><label>Hora</label><input type="text" class="val" data-f="hora" placeholder="HH:MM"></div>
+      <div class="field"><label>Unidade / Complexo</label>
+        <select data-f="unidade" id="unidade"></select>
+      </div>
+      <div class="field"><label>Setor</label><div class="val" contenteditable="true" data-f="setor"></div></div>
+    </div>
+
+    <div class="grid-4" style="margin-bottom:8px;grid-template-columns:repeat(5,1fr)">
+      <div class="field">
+        <label>Classificação</label>
+        <select id="class-secao1" data-f="classificacao" onchange="setSeverityByLabel(this.value)">
+          <option value="grave">Acidente Grave</option>
+          <option value="leve">Acidente Leve</option>
+          <option value="incidente">Incidente / Quase Acidente</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Potencial da ocorrência</label>
+        <select data-f="potencial"><option>Alto</option><option>Médio</option><option>Baixo</option></select>
+      </div>
+      <div class="field">
+        <label>Potencial de agravamento</label>
+        <select data-f="agravamento"><option>Alto</option><option>Médio</option><option>Baixo</option></select>
+      </div>
+      <div class="field"><label>Dias perdidos</label><div class="val" contenteditable="true" data-f="dias_perdidos"></div></div>
+      <div class="field"><label>Nº CAT</label><div class="val" contenteditable="true" data-f="cat"></div></div>
+    </div>
+
+    <div class="grid-4" style="margin-bottom:0;grid-template-columns:repeat(5,1fr)">
+      <div class="field">
+        <label>Tipo de lesão</label>
+        <select data-f="tipo_lesao">
+          <option></option><option>Fratura</option><option>Corte / Laceração</option><option>Escoriação</option>
+          <option>Contusão / Hematoma</option><option>Luxação / Entorse</option><option>Queimadura</option>
+          <option>Alergia</option><option>Esmagamento</option><option>Amputação</option><option>Intoxicação</option>
+          <option>Irritação</option><option>Óbito</option><option>Sem lesão</option><option>Outro</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Parte do corpo atingida</label>
+        <select data-f="parte_corpo">
+          <option></option><option>Cabeça / Crânio</option><option>Rosto / Olhos</option><option>Pescoço</option>
+          <option>Ombro</option><option>Braço / Antebraço</option><option>Mão / Dedos</option><option>Tórax / Costelas</option>
+          <option>Coluna</option><option>Abdome</option><option>Quadril / Pelve</option><option>Coxa / Perna</option>
+          <option>Joelho</option><option>Pé / Tornozelo</option><option>Múltiplas regiões</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Categoria</label>
+        <select data-f="categoria">
+          <option>Típico</option><option>Trajeto</option><option>Trajeto interno</option>
+          <option>Trajeto entre fazendas</option><option>Serviço externo</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Tipo de contato</label>
+        <select data-f="tipo_contato">
+          <option></option><option>Impacto de objeto</option><option>Queda de mesmo nível</option>
+          <option>Queda de níveis diferentes</option><option>Pisada em falso</option><option>Tropeçar / Escorregar</option>
+          <option>Batida contra</option><option>Contato com animal</option><option>Colisão de veículo</option>
+          <option>Esforço excessivo</option><option>Contato com produto químico</option>
+          <option>Contato com energia elétrica</option><option>Outro</option>
+        </select>
+      </div>
+      <div class="field"><label>Acidentes anteriores</label><div class="val" contenteditable="true" data-f="acidentes_anteriores"></div></div>
+    </div>
+  </div>
+
+  <!-- ENVOLVIDOS -->
+  <div class="section">
+    <div class="section-title">2. Envolvidos</div>
+    <div class="envolvidos-grid">
+      <div class="envolvido-card">
+        <div class="envolvido-title">Envolvido 1</div>
+        <div class="envolvido-grid">
+          <div class="field"><label>Nome</label><div class="val" contenteditable="true" data-f="e1_nome"></div></div>
+          <div class="field"><label>Registro</label><div class="val" contenteditable="true" data-f="e1_registro"></div></div>
+          <div class="field"><label>Tempo na empresa</label><div class="val" contenteditable="true" data-f="e1_tempo_empresa"></div></div>
+          <div class="field"><label>Tempo na função</label><div class="val" contenteditable="true" data-f="e1_tempo_funcao"></div></div>
+          <div class="field"><label>Função</label><div class="val" contenteditable="true" data-f="e1_funcao"></div></div>
+          <div class="field"><label>Houve lesão?</label><select data-f="e1_lesao"><option>Sim</option><option>Não</option></select></div>
+        </div>
+      </div>
+      <div class="envolvido-card">
+        <div class="envolvido-title">Envolvido 2</div>
+        <div class="envolvido-grid">
+          <div class="field"><label>Nome</label><div class="val" contenteditable="true" data-f="e2_nome"></div></div>
+          <div class="field"><label>Registro</label><div class="val" contenteditable="true" data-f="e2_registro"></div></div>
+          <div class="field"><label>Tempo na empresa</label><div class="val" contenteditable="true" data-f="e2_tempo_empresa"></div></div>
+          <div class="field"><label>Tempo na função</label><div class="val" contenteditable="true" data-f="e2_tempo_funcao"></div></div>
+          <div class="field"><label>Função</label><div class="val" contenteditable="true" data-f="e2_funcao"></div></div>
+          <div class="field"><label>Houve lesão?</label><select data-f="e2_lesao"><option></option><option>Sim</option><option>Não</option></select></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 5W1H -->
+  <div class="section">
+    <div class="section-title">3. 5W1H — O que aconteceu?</div>
+    <div class="w1h-grid">
+      <div class="w-item"><div class="w-label">📅 Quando?</div><div class="w-value" contenteditable="true" data-f="w_quando"></div></div>
+      <div class="w-item"><div class="w-label">📍 Onde?</div><div class="w-value" contenteditable="true" data-f="w_onde"></div></div>
+      <div class="w-item"><div class="w-label">👤 Quem?</div><div class="w-value" contenteditable="true" data-f="w_quem"></div></div>
+      <div class="w-item"><div class="w-label">🔎 O quê?</div><div class="w-value" contenteditable="true" data-f="w_oque" style="min-height:40px"></div></div>
+      <div class="w-item"><div class="w-label">❓ Por quê?</div><div class="w-value" contenteditable="true" data-f="w_porque" style="min-height:40px"></div></div>
+      <div class="w-item"><div class="w-label">⚙️ Como?</div><div class="w-value" contenteditable="true" data-f="w_como" style="min-height:40px"></div></div>
+    </div>
+  </div>
+
+  <!-- DESCRIÇÃO -->
+  <div class="section">
+    <div class="section-title">4. Descrição Completa da Ocorrência (Fenômeno)</div>
+    <div class="textarea" contenteditable="true" data-f="descricao" style="min-height:80px"></div>
+  </div>
+
+  <!-- INFORMAÇÕES COMPLEMENTARES -->
+  <div class="section">
+    <div class="section-title">5. Informações Complementares</div>
+    <div style="margin-bottom:12px">
+      <label style="font-size:9px;font-weight:700;text-transform:uppercase;color:#999;letter-spacing:0.4px;display:block;margin-bottom:4px">Observação</label>
+      <div class="textarea" contenteditable="true" data-f="observacao" style="min-height:60px"></div>
+    </div>
+    <label style="font-size:9px;font-weight:700;text-transform:uppercase;color:#999;letter-spacing:0.4px;display:block;margin-bottom:8px">Fotos</label>
+    <div id="fotos-container" style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:10px"></div>
+    <label class="btn-foto" style="display:inline-flex;align-items:center;gap:6px;background:#1a3a5c;color:#fff;padding:7px 16px;border-radius:4px;font-size:12px;font-weight:bold;cursor:pointer;font-family:Arial,sans-serif;">
+      📷 Adicionar foto
+      <input type="file" accept="image/*" multiple style="display:none" onchange="adicionarFotos(this)">
+    </label>
+  </div>
+
+  <!-- ISHIKAWA -->
+  <div class="section">
+    <div class="section-title">6. Diagrama de Ishikawa — Análise de Causas (6Ms)</div>
+    <div class="ishikawa-grid">
+
+      <div class="ishi-m" data-m="mao_de_obra">
+        <div class="ishi-m-header">👷 Mão de Obra</div>
+        <div class="ishi-m-body">
+          <label class="ishi-option"><input type="checkbox"> Falta de atenção / distração</label>
+          <label class="ishi-option"><input type="checkbox"> Uso de celular durante a atividade</label>
+          <label class="ishi-option"><input type="checkbox"> Excesso de confiança</label>
+          <label class="ishi-option"><input type="checkbox"> Falta de treinamento ou capacitação</label>
+          <label class="ishi-option"><input type="checkbox"> Não seguiu o procedimento</label>
+          <label class="ishi-option"><input type="checkbox"> Cansaço / fadiga</label>
+          <label class="ishi-option"><input type="checkbox"> Pressa para terminar a tarefa</label>
+          <label class="ishi-option"><input type="checkbox"> Falta de experiência na função</label>
+          <label class="ishi-option"><input type="checkbox"> Trabalhando sozinho em tarefa de risco</label>
+          <label class="ishi-option"><input type="checkbox"> Falta de percepção de risco</label>
+          <label class="ishi-option"><input type="checkbox"> Não uso do EPI mesmo disponível</label>
+          <label class="ishi-option"><input type="checkbox"> Estado de saúde inadequado para a atividade</label>
+          <label class="ishi-option"><input type="checkbox"> Improviso por iniciativa própria, sem autorização</label>
+        </div>
+      </div>
+
+      <div class="ishi-m" data-m="maquina">
+        <div class="ishi-m-header">🚜 Máquina / Equipamento</div>
+        <div class="ishi-m-body">
+          <label class="ishi-option"><input type="checkbox"> Falta de manutenção preventiva</label>
+          <label class="ishi-option"><input type="checkbox"> Equipamento com defeito ou desgastado</label>
+          <label class="ishi-option"><input type="checkbox"> Proteção ausente ou danificada</label>
+          <label class="ishi-option"><input type="checkbox"> Ferramenta inadequada para a tarefa</label>
+          <label class="ishi-option"><input type="checkbox"> Pneu gasto ou calibragem errada</label>
+          <label class="ishi-option"><input type="checkbox"> Cabo / correia / cinta em mau estado</label>
+          <label class="ishi-option"><input type="checkbox"> Máquina / equipamento sem revisão</label>
+          <label class="ishi-option"><input type="checkbox"> Disco ou lâmina em mau estado</label>
+          <label class="ishi-option"><input type="checkbox"> Dispositivo de segurança inoperante</label>
+          <label class="ishi-option"><input type="checkbox"> Vazamento hidráulico ou pneumático</label>
+          <label class="ishi-option"><input type="checkbox"> Painel ou alarme do equipamento inoperante</label>
+          <label class="ishi-option"><input type="checkbox"> Sinalização sonora ou luminosa inoperante</label>
+          <label class="ishi-option"><input type="checkbox"> Modificação não autorizada no equipamento</label>
+        </div>
+      </div>
+
+      <div class="ishi-m" data-m="metodo">
+        <div class="ishi-m-header">📋 Método</div>
+        <div class="ishi-m-body">
+          <label class="ishi-option"><input type="checkbox"> Procedimento inexistente para a tarefa</label>
+          <label class="ishi-option"><input type="checkbox"> Procedimento existe mas não é seguido</label>
+          <label class="ishi-option"><input type="checkbox"> Procedimento desatualizado ou incompatível com a prática</label>
+          <label class="ishi-option"><input type="checkbox"> Regra de trânsito interno não definida</label>
+          <label class="ishi-option"><input type="checkbox"> Fluxo de veículos e pedestres não sinalizado</label>
+          <label class="ishi-option"><input type="checkbox"> Forma de manejar os animais inadequada</label>
+          <label class="ishi-option"><input type="checkbox"> Forma de manuseio de produto químico inadequada</label>
+          <label class="ishi-option"><input type="checkbox"> Trabalho em altura sem planejamento</label>
+          <label class="ishi-option"><input type="checkbox"> Tarefa feita de forma improvisada</label>
+          <label class="ishi-option"><input type="checkbox"> Falta de permissão de trabalho para a atividade</label>
+          <label class="ishi-option"><input type="checkbox"> Falha de comunicação entre os operadores</label>
+        </div>
+      </div>
+
+      <div class="ishi-m" data-m="material">
+        <div class="ishi-m-header">🧰 Material</div>
+        <div class="ishi-m-body">
+          <label class="ishi-option"><input type="checkbox"> EPI ausente</label>
+          <label class="ishi-option"><input type="checkbox"> EPI inadequado para o risco</label>
+          <label class="ishi-option"><input type="checkbox"> EPI danificado ou vencido</label>
+          <label class="ishi-option"><input type="checkbox"> Produto químico sem identificação (FISPQ)</label>
+          <label class="ishi-option"><input type="checkbox"> Embalagem de produto inadequada</label>
+          <label class="ishi-option"><input type="checkbox"> Material ou peça com defeito</label>
+          <label class="ishi-option"><input type="checkbox"> Material utilizado errado (especificação incorreta)</label>
+          <label class="ishi-option"><input type="checkbox"> Armazenamento ou acondicionamento inadequado</label>
+          <label class="ishi-option"><input type="checkbox"> Material contaminado</label>
+          <label class="ishi-option"><input type="checkbox"> Carga acima da capacidade do equipamento</label>
+          <label class="ishi-option"><input type="checkbox"> Ausência de sinalização no local</label>
+        </div>
+      </div>
+
+      <div class="ishi-m" data-m="meio_ambiente">
+        <div class="ishi-m-header">🌿 Meio Ambiente</div>
+        <div class="ishi-m-body">
+          <label class="ishi-option"><input type="checkbox"> Piso escorregadio (lama, areia, água, esterco)</label>
+          <label class="ishi-option"><input type="checkbox"> Estrada interna em mau estado</label>
+          <label class="ishi-option"><input type="checkbox"> Pista estreita sem espaço para cruzamento</label>
+          <label class="ishi-option"><input type="checkbox"> Sinalização de trânsito ausente ou apagada</label>
+          <label class="ishi-option"><input type="checkbox"> Visibilidade prejudicada (poeira, sol, chuva)</label>
+          <label class="ishi-option"><input type="checkbox"> Visibilidade reduzida por vegetação ou capim alto</label>
+          <label class="ishi-option"><input type="checkbox"> Área de trabalho desorganizada</label>
+          <label class="ishi-option"><input type="checkbox"> Presença de animais no trajeto ou área de trabalho</label>
+          <label class="ishi-option"><input type="checkbox"> Sem controle de pragas ou animais peçonhentos</label>
+          <label class="ishi-option"><input type="checkbox"> Condições climáticas adversas (chuva, calor, vento)</label>
+          <label class="ishi-option"><input type="checkbox"> Barracão com espaço reduzido para manejo</label>
+          <label class="ishi-option"><input type="checkbox"> Iluminação insuficiente</label>
+          <label class="ishi-option"><input type="checkbox"> Local de difícil acesso ou restrito</label>
+        </div>
+      </div>
+
+      <div class="ishi-m" data-m="medicao">
+        <div class="ishi-m-header">📊 Medição</div>
+        <div class="ishi-m-body">
+          <label class="ishi-option"><input type="checkbox"> Velocidade dos veículos não controlada</label>
+          <label class="ishi-option"><input type="checkbox"> Sem inspeção periódica de máquinas e equipamentos</label>
+          <label class="ishi-option"><input type="checkbox"> Sem controle de manutenção preventiva</label>
+          <label class="ishi-option"><input type="checkbox"> Indicadores de segurança não acompanhados</label>
+          <label class="ishi-option"><input type="checkbox"> Ausência de inspeção de campo</label>
+          <label class="ishi-option"><input type="checkbox"> Monitoramento de área de risco inexistente</label>
+        </div>
+      </div>
+
+    </div>
+
+    <label style="font-size:9px;font-weight:700;text-transform:uppercase;color:#999;letter-spacing:0.4px;display:block;margin:14px 0 4px">Observações da análise</label>
+    <div class="textarea" contenteditable="true" data-f="ishikawa_obs" style="min-height:80px; font-size:14px; line-height:1.7"></div>
+  </div>
+
+  <!-- CAUSAS DA OCORRÊNCIA -->
+  <div class="section">
+    <div class="section-title">7. Causas da Ocorrência</div>
+    <div class="causas-grid">
+      <div class="causa-block">
+        <div class="causa-label">Causa imediata</div>
+        <div class="textarea" contenteditable="true" data-f="causa_imediata" style="min-height:60px;background:transparent"></div>
+      </div>
+      <div class="causa-block" style="border-left-color:#B71247">
+        <div class="causa-label" style="color:#B71247">Causa raiz</div>
+        <div class="textarea" contenteditable="true" data-f="causa_raiz" style="min-height:60px;background:transparent"></div>
+      </div>
+      <div class="causa-block" style="border-left-color:#E07B00">
+        <div class="causa-label" style="color:#E07B00">Causas contribuintes</div>
+        <div class="textarea" contenteditable="true" data-f="causas_contribuintes" style="min-height:60px;background:transparent"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PLANO DE AÇÃO -->
+  <div class="section">
+    <div class="section-title">8. Plano de Ação</div>
+    <table class="action-table" id="action-table">
+      <thead>
+        <tr>
+          <th style="width:36%">O quê será feito</th>
+          <th style="width:20%">Quem irá fazer</th>
+          <th style="width:14%">Quando</th>
+          <th style="width:26%">Replicar para outras unidades?</th>
+          <th class="col-x" style="width:4%"></th>
+        </tr>
+      </thead>
+      <tbody id="action-tbody"></tbody>
+    </table>
+    <button class="btn-add-row" onclick="addRow()">+ Adicionar linha</button>
+  </div>
+
+  <!-- FOOTER -->
+  <div class="footer">
+    <div class="footer-field"><label>Técnico de Segurança</label><div class="val" contenteditable="true" data-f="tecnico"></div></div>
+    <div class="footer-field"><label>Gerente Local</label><div class="val" contenteditable="true" data-f="gerente"></div></div>
+    <div class="footer-field"><label>Data de emissão</label><div class="val" contenteditable="true" data-f="data_emissao_rodape"></div></div>
+  </div>
+
+</div><!-- /page -->
+</div><!-- /conteudo -->
+
+<script src="js/vendor/supabase.js"></script>
+<script src="js/config.js"></script>
+<script src="js/app.js"></script>
+<script src="js/form-niat.js"></script>
+</body>
+</html>

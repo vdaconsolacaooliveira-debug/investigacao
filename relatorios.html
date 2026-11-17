@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Relatórios — Sistema SST</title>
+<link rel="icon" href="img/logo-db.png">
+<link rel="stylesheet" href="css/app.css">
+</head>
+<body class="sst-app">
+<header id="sst-appbar"></header>
+
+<main class="sst-main">
+  <div class="sst-titulo">
+    <div>
+      <h1>Relatórios</h1>
+      <p id="sub">Pesquise pelo número, envolvido, unidade ou descrição.</p>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap" class="sst-noprint">
+      <button class="btn" id="b-csv" type="button">⬇️ Exportar planilha (CSV)</button>
+      <a class="btn" href="cincoporques.html">❓ Novo 5 Porquês</a>
+      <a class="btn primario" href="niat.html">📝 Nova NIAT</a>
+    </div>
+  </div>
+
+  <div class="sst-card filtros">
+    <input id="f-busca" type="search" placeholder="🔍  Pesquisar… (ex.: NIAT-FSF-008, Itamar, oficina)">
+    <select id="f-tipo"><option value="">Todos os tipos</option><option value="niat">NIAT</option><option value="5pq">5 Porquês</option></select>
+    <select id="f-unidade"><option value="">Todas as unidades</option></select>
+    <select id="f-ano"><option value="">Todos os anos</option></select>
+    <select id="f-classif">
+      <option value="">Toda classificação</option><option value="grave">Grave</option>
+      <option value="leve">Leve</option><option value="incidente">Incidente / Quase acidente</option>
+    </select>
+    <select id="f-situacao"><option value="">Toda situação</option><option value="rascunho">Rascunho</option><option value="concluido">Concluído</option></select>
+  </div>
+
+  <div class="sst-card">
+    <div class="tabela-wrap">
+      <table class="tabela">
+        <thead><tr id="cab"></tr></thead>
+        <tbody id="corpo"><tr><td colspan="10"><div class="carregando" style="min-height:160px"><div><div class="giro"></div>Carregando…</div></div></td></tr></tbody>
+      </table>
+    </div>
+    <div class="rodape-lista"><span id="contagem"></span><span>Clique na linha para abrir o relatório</span></div>
+  </div>
+</main>
+
+<script src="js/vendor/supabase.js"></script>
+<script src="js/config.js"></script>
+<script src="js/app.js"></script>
+<script>
+const { sb, esc, toast, traduzErro, CLASSIF, TIPOS } = SST;
+let perfil, todos = [], ordem = { campo: 'numero_ord', desc: true };
+const $ = id => document.getElementById(id);
+
+function normal(t) { return String(t || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase(); }
+
+const colunas = () => [
+  ['numero_ord', 'Nº'],
+  ['tipo', 'Tipo'],
+  ['unidade_nome', 'Unidade'],
+  ['data_ocorrencia', 'Ocorrência'],
+  ['envolvido', 'Envolvido / resumo'],
+  ['classificacao', 'Classificação'],
+  ['situacao', 'Situação'],
+  ...(perfil.papel === 'admin' ? [['autor', 'Autor']] : []),
+  ['atualizado_em', 'Atualizado'],
+  [null, '']
+];
+
+function filtrar() {
+  const busca = normal($('f-busca').value).trim();
+  const f = { tipo: $('f-tipo').value, unidade: $('f-unidade').value, ano: $('f-ano').value,
+              classificacao: $('f-classif').value, situacao: $('f-situacao').value };
+  const termos = busca.split(/\s+/).filter(Boolean);
+  let l = todos.filter(r =>
+    (!f.tipo || r.tipo === f.tipo) && (!f.unidade || r.unidade === f.unidade) &&
+    (!f.ano || String(r.ano) === f.ano) && (!f.classificacao || r.classificacao === f.classificacao) &&
+    (!f.situacao || r.situacao === f.situacao) &&
+    termos.every(t => r._texto.includes(t)));
+  const { campo, desc } = ordem;
+  l.sort((a, b) => {
+    const x = a[campo] ?? '', y = b[campo] ?? '';
+    return (x < y ? -1 : x > y ? 1 : 0) * (desc ? -1 : 1);
+  });
+  return l;
+}
+
+function desenhar() {
+  const l = filtrar();
+  $('cab').innerHTML = colunas().map(([k, t]) =>
+    `<th ${k ? `data-ord="${k}"` : ''}>${t}${ordem.campo === k ? (ordem.desc ? ' ▾' : ' ▴') : ''}</th>`).join('');
+  $('cab').querySelectorAll('th[data-ord]').forEach(th => th.onclick = () => {
+    const k = th.dataset.ord;
+    ordem = { campo: k, desc: ordem.campo === k ? !ordem.desc : false };
+    desenhar();
+  });
+  $('contagem').textContent = `${l.length} de ${todos.length} relatório(s)`;
+  if (!l.length) {
+    $('corpo').innerHTML = `<tr><td colspan="10"><div class="vazio"><div class="ic">🔎</div>${todos.length ? 'Nenhum relatório encontrado com esses filtros.' : 'Nenhum relatório cadastrado ainda.'}</div></td></tr>`;
+    return;
+  }
+  const admin = perfil.papel === 'admin';
+  $('corpo').innerHTML = l.map(r => `
+    <tr data-id="${r.id}" data-tipo="${r.tipo}">
+      <td class="num">${esc(r.numero)}${r.niat_numero ? `<span class="sub">↳ ${esc(r.niat_numero)}</span>` : ''}</td>
+      <td><span class="etiqueta ${r.tipo === 'niat' ? 'niat' : 'pq'}">${TIPOS[r.tipo].curto}</span></td>
+      <td>${esc(r.unidade_nome)}</td>
+      <td>${SST.dataBR(r.data_ocorrencia) || '—'}</td>
+      <td style="max-width:300px">${esc(r.envolvido) || '—'}${r.resumo ? `<span class="sub">${esc(r.resumo.slice(0, 90))}${r.resumo.length > 90 ? '…' : ''}</span>` : ''}</td>
+      <td>${r.classificacao ? `<span class="etiqueta ${r.classificacao}">${CLASSIF[r.classificacao].curto}</span>` : '—'}</td>
+      <td><span class="etiqueta ${r.situacao}">${r.situacao === 'concluido' ? 'Concluído' : 'Rascunho'}</span></td>
+      ${admin ? `<td>${esc(r.autor || '—')}</td>` : ''}
+      <td>${SST.dataHoraBR(r.atualizado_em)}</td>
+      <td class="acoes">${admin ? `<button class="btn pequeno perigo" data-excluir="${r.id}" title="Excluir">🗑️</button>` : ''}</td>
+    </tr>`).join('');
+  $('corpo').querySelectorAll('tr[data-id]').forEach(tr => tr.onclick = e => {
+    if (e.target.closest('[data-excluir]')) return;
+    location.href = `${TIPOS[tr.dataset.tipo].pagina}?id=${tr.dataset.id}`;
+  });
+  $('corpo').querySelectorAll('[data-excluir]').forEach(b => b.onclick = () => excluir(b.dataset.excluir));
+}
+
+async function excluir(id) {
+  const r = todos.find(x => x.id === id);
+  if (!confirm(`Excluir definitivamente o relatório ${r.numero}?\n\nO número não será reaproveitado. Esta ação não pode ser desfeita.`)) return;
+  try {
+    const { data: fotos } = await sb.storage.from('fotos').list(id);
+    if (fotos && fotos.length) await sb.storage.from('fotos').remove(fotos.map(f => `${id}/${f.name}`));
+    const { error } = await sb.from('relatorios').delete().eq('id', id);
+    if (error) throw error;
+    todos = todos.filter(x => x.id !== id);
+    desenhar();
+    toast(`Relatório ${r.numero} excluído.`, 'ok');
+  } catch (e) { toast(traduzErro(e), 'erro'); }
+}
+
+function exportarCSV() {
+  const l = filtrar();
+  const cab = ['Número', 'Tipo', 'NIAT vinculada', 'Unidade', 'Data da ocorrência', 'Envolvido', 'Classificação', 'Situação', 'Resumo', 'Autor', 'Criado em', 'Atualizado em'];
+  const q = v => `"${String(v ?? '').replace(/"/g, '""').replace(/\r?\n/g, ' ')}"`;
+  const linhas = l.map(r => [r.numero, TIPOS[r.tipo].curto, r.niat_numero, r.unidade_nome, SST.dataBR(r.data_ocorrencia),
+    r.envolvido, r.classificacao ? CLASSIF[r.classificacao].rotulo : '', r.situacao === 'concluido' ? 'Concluído' : 'Rascunho',
+    r.resumo, r.autor, SST.dataHoraBR(r.criado_em), SST.dataHoraBR(r.atualizado_em)].map(q).join(';'));
+  const blob = new Blob(['﻿' + [cab.map(q).join(';'), ...linhas].join('\r\n')], { type: 'text/csv;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `relatorios-sst-${new Date().toISOString().slice(0, 10)}.csv`;
+  a.click();
+}
+
+(async function () {
+  try { perfil = await SST.exigirLogin(); } catch (e) { return; }
+  await SST.barra(perfil, 'lista');
+  if (perfil.papel === 'admin') $('sub').textContent = 'Você vê os relatórios de todos os usuários.';
+  else $('sub').textContent = 'Aqui aparecem os relatórios que você criou.';
+
+  const uns = await SST.unidades();
+  $('f-unidade').innerHTML += uns.map(u => `<option value="${esc(u.sigla)}">${esc(u.nome)}</option>`).join('');
+
+  const { data, error } = await sb.from('lista_relatorios').select('*').order('atualizado_em', { ascending: false }).limit(5000);
+  if (error) { toast(traduzErro(error), 'erro'); return; }
+  todos = data.map(r => ({
+    ...r,
+    numero_ord: `${r.ano}-${r.tipo}-${r.unidade}-${String(r.sequencia).padStart(5, '0')}`,
+    _texto: normal([r.numero, r.niat_numero, r.envolvido, r.resumo, r.unidade_nome, r.unidade, r.autor, TIPOS[r.tipo].curto].join(' '))
+  }));
+  ordem = { campo: 'atualizado_em', desc: true };
+
+  const anos = [...new Set(todos.map(r => r.ano))].sort((a, b) => b - a);
+  $('f-ano').innerHTML += anos.map(a => `<option>${a}</option>`).join('');
+
+  // Filtros vindos do link (ex.: ?situacao=rascunho)
+  ['tipo', 'unidade', 'ano', 'situacao'].forEach(k => { const v = SST.param(k); if (v) $('f-' + k).value = v; });
+  if (SST.param('q')) $('f-busca').value = SST.param('q');
+
+  ['f-busca', 'f-tipo', 'f-unidade', 'f-ano', 'f-classif', 'f-situacao'].forEach(id =>
+    $(id).addEventListener(id === 'f-busca' ? 'input' : 'change', desenhar));
+  $('b-csv').onclick = exportarCSV;
+  desenhar();
+  $('f-busca').focus();
+})();
+</script>
+</body>
+</html>

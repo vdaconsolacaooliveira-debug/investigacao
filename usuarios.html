@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Usuários — Sistema SST</title>
+<link rel="icon" href="img/logo-db.png">
+<link rel="stylesheet" href="css/app.css">
+</head>
+<body class="sst-app">
+<header id="sst-appbar"></header>
+
+<main class="sst-main">
+  <div class="sst-titulo">
+    <div>
+      <h1>Usuários</h1>
+      <p>Libere cadastros novos, defina quem é Administrador e bloqueie acessos.</p>
+    </div>
+  </div>
+
+  <div class="alerta info">
+    <b>Administrador</b> vê e edita os relatórios de todos e gerencia usuários.
+    <b>Usuário padrão</b> vê e edita só os relatórios que ele mesmo criou.
+  </div>
+
+  <div class="secao-rotulo" id="rot-pend" hidden>Aguardando aprovação</div>
+  <div class="sst-card tabela-wrap" id="pendentes" hidden></div>
+
+  <div class="secao-rotulo">Todos os usuários</div>
+  <div class="sst-card tabela-wrap" id="todos"></div>
+</main>
+
+<script src="js/vendor/supabase.js"></script>
+<script src="js/config.js"></script>
+<script src="js/app.js"></script>
+<script>
+const { sb, esc, toast, traduzErro } = SST;
+let eu, lista = [];
+const $ = id => document.getElementById(id);
+
+function linha(u, pend) {
+  const proprio = u.id === eu.id;
+  const acoes = [];
+  if (u.situacao === 'pendente') acoes.push(`<button class="btn pequeno verde" data-a="aprovar">✔ Aprovar</button>`, `<button class="btn pequeno perigo" data-a="bloquear">Recusar</button>`);
+  else if (!proprio) {
+    if (u.situacao === 'ativo') acoes.push(`<button class="btn pequeno perigo" data-a="bloquear">🔒 Bloquear</button>`);
+    if (u.situacao === 'bloqueado') acoes.push(`<button class="btn pequeno" data-a="aprovar">🔓 Reativar</button>`);
+    acoes.push(u.papel === 'admin'
+      ? `<button class="btn pequeno" data-a="padrao">Tornar padrão</button>`
+      : `<button class="btn pequeno" data-a="admin">Tornar administrador</button>`);
+  }
+  return `<tr data-id="${u.id}" style="cursor:default">
+    <td><b>${esc(u.nome || '—')}</b>${proprio ? ' <span class="sub" style="display:inline">(você)</span>' : ''}<span class="sub">${esc(u.email)}</span></td>
+    <td><span class="etiqueta ${u.papel}">${u.papel === 'admin' ? 'Administrador' : 'Padrão'}</span></td>
+    <td><span class="etiqueta ${u.situacao}">${{ pendente: 'Pendente', ativo: 'Ativo', bloqueado: 'Bloqueado' }[u.situacao]}</span></td>
+    <td>${SST.dataHoraBR(u.criado_em)}</td>
+    <td>${pend ? '' : esc(u._qtd ?? 0)}</td>
+    <td class="acoes">${acoes.join(' ')}</td>
+  </tr>`;
+}
+
+function tabela(itens, pend) {
+  return `<table class="tabela"><thead><tr>
+    <th>Nome / e-mail</th><th>Papel</th><th>Situação</th><th>Cadastro</th><th>${pend ? '' : 'Relatórios'}</th><th></th>
+  </tr></thead><tbody>${itens.map(u => linha(u, pend)).join('')}</tbody></table>`;
+}
+
+function desenhar() {
+  const pend = lista.filter(u => u.situacao === 'pendente');
+  $('rot-pend').hidden = $('pendentes').hidden = !pend.length;
+  $('pendentes').innerHTML = pend.length ? tabela(pend, true) : '';
+  $('todos').innerHTML = tabela(lista.filter(u => u.situacao !== 'pendente'), false);
+  document.querySelectorAll('[data-a]').forEach(b => b.onclick = () => agir(b.closest('tr').dataset.id, b.dataset.a));
+}
+
+async function agir(id, acao) {
+  const u = lista.find(x => x.id === id);
+  const mudanca = { aprovar: { situacao: 'ativo' }, bloquear: { situacao: 'bloqueado' },
+                    admin: { papel: 'admin' }, padrao: { papel: 'padrao' } }[acao];
+  const textos = {
+    bloquear: `Bloquear o acesso de ${u.nome || u.email}? Os relatórios dele continuam guardados.`,
+    admin: `Tornar ${u.nome || u.email} Administrador? Ele vai ver e editar os relatórios de todos.`,
+    padrao: `Tirar o acesso de Administrador de ${u.nome || u.email}?`
+  };
+  if (textos[acao] && !confirm(textos[acao])) return;
+  const { error } = await sb.from('perfis').update(mudanca).eq('id', id);
+  if (error) return toast(traduzErro(error), 'erro');
+  Object.assign(u, mudanca);
+  toast('Usuário atualizado.', 'ok');
+  desenhar();
+  SST.barra(eu, 'usuarios');
+}
+
+(async function () {
+  try { eu = await SST.exigirLogin({ admin: true }); } catch (e) { return; }
+  await SST.barra(eu, 'usuarios');
+  const [{ data, error }, { data: rels }] = await Promise.all([
+    sb.from('perfis').select('*').order('criado_em', { ascending: false }),
+    sb.from('relatorios').select('criado_por')
+  ]);
+  if (error) return toast(traduzErro(error), 'erro');
+  const qtd = {};
+  (rels || []).forEach(r => qtd[r.criado_por] = (qtd[r.criado_por] || 0) + 1);
+  lista = data.map(u => ({ ...u, _qtd: qtd[u.id] || 0 }));
+  desenhar();
+})();
+</script>
+</body>
+</html>
