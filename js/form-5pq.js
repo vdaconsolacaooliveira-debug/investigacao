@@ -6,9 +6,9 @@ let perfil = null;
 
 // ── Classificação ─────────────────────────────────────────────────
 const SEV = [
-  { cls: '',          label: '⚠ ACIDENTE GRAVE',             val: 'grave' },
-  { cls: 'leve',      label: '⚠ ACIDENTE LEVE',              val: 'leve' },
-  { cls: 'incidente', label: '⚠ INCIDENTE / QUASE ACIDENTE', val: 'incidente' }
+  { cls: '',          label: SST.ic('triangle-alert') + ' ACIDENTE GRAVE',             val: 'grave' },
+  { cls: 'leve',      label: SST.ic('triangle-alert') + ' ACIDENTE LEVE',              val: 'leve' },
+  { cls: 'incidente', label: SST.ic('triangle-alert') + ' INCIDENTE / QUASE ACIDENTE', val: 'incidente' }
 ];
 let sevIdx = 0;
 function setSeverity(v) {
@@ -38,7 +38,7 @@ function novaCadeia(linhas) {
       <div class="cadeia-head-btns">
         <button class="btn-cadeia btn-add-l" onclick="adicionarLinha('${id}', ${n}, false)">+ Linha</button>
         <button class="btn-cadeia btn-del-l" onclick="removerUltimaLinha('${id}', ${n})">— Linha</button>
-        ${n > 1 ? `<button class="btn-cadeia btn-del-cadeia" onclick="removerCadeia('${id}')">✕ Cadeia</button>` : ''}
+        ${n > 1 ? `<button class="btn-cadeia btn-del-cadeia" onclick="removerCadeia('${id}')">Remover cadeia</button>` : ''}
       </div>
     </div>
     <div class="grade-wrap">
@@ -229,7 +229,7 @@ function atualizarBotaoNiat() {
   const v = sel.value;
   const b = document.getElementById('b-niat');
   b.hidden = !v;
-  b.textContent = paiTravado ? '📝 Abrir NIAT (pai)' : '📝 Abrir NIAT';
+  b.innerHTML = SST.ic('file-text') + (paiTravado ? '<span>Abrir NIAT (pai)</span>' : '<span>Abrir NIAT</span>');
   b.onclick = () => { location.href = `niat.html?id=${v}`; };
   sel.disabled = paiTravado;
   const resp = document.getElementById('responsavel');
@@ -279,7 +279,7 @@ function marcarSujo() {
   if (carregandoForm) return;
   SST.alteracoes.sujo = true;
   const e = document.getElementById('estado');
-  e.textContent = '● Alterações não salvas'; e.className = 'estado sujo';
+  e.textContent = 'Alterações não salvas'; e.className = 'estado sujo';
 }
 function marcarLimpo(txt) {
   SST.alteracoes.sujo = false;
@@ -321,7 +321,7 @@ async function salvar() {
   };
   const selResp = document.getElementById('responsavel');
   if (!selResp.hidden && !selResp.disabled) linha.responsavel = selResp.value;
-  b.disabled = true; b.textContent = '⏳ Salvando…';
+  b.disabled = true; b.innerHTML = SST.ic('loader-circle') + '<span>Salvando…</span>';
   try {
     if (!registro.id) {
       const { data, error } = await sb.from('relatorios')
@@ -337,12 +337,12 @@ async function salvar() {
       if (error) throw error;
     }
     if (linha.niat_id && !paiTravado) { paiTravado = true; atualizarBotaoNiat(); }
-    marcarLimpo('✔ Salvo às ' + new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }));
+    marcarLimpo('Salvo às ' + new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }));
     toast(`Relatório ${registro.numero} salvo.`, 'ok');
   } catch (e) {
     toast('Não foi possível salvar: ' + traduzErro(e), 'erro', 6000);
   } finally {
-    b.disabled = false; b.textContent = '💾 Salvar';
+    b.disabled = false; b.innerHTML = SST.ic('save') + '<span>Salvar</span>';
   }
 }
 
@@ -395,7 +395,7 @@ async function carregar(id) {
     const id = SST.param('id');
     if (id) {
       if (!(await carregar(id))) {
-        document.getElementById('carregando').innerHTML = '<div class="vazio"><div class="ic">🔒</div>Relatório não encontrado ou você não tem permissão para abri-lo.<br><br><a class="btn primario" href="relatorios.html">Ir para a lista</a></div>';
+        document.getElementById('carregando').innerHTML = '<div class="vazio"><div class="ic">' + SST.ic('lock', 40) + '</div>Relatório não encontrado ou você não tem permissão para abri-lo.<br><br><a class="btn primario" href="relatorios.html">Ir para a lista</a></div>';
         return;
       }
     } else {

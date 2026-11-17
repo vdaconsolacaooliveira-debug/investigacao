@@ -6,9 +6,9 @@ let perfil = null;
 
 // ── Classificação (mantém o comportamento original) ───────────────
 const severities = [
-  { cls: '',          band: '⚠ ACIDENTE GRAVE',             val: 'grave' },
-  { cls: 'leve',      band: '⚠ ACIDENTE LEVE',              val: 'leve' },
-  { cls: 'incidente', band: '⚠ INCIDENTE / QUASE ACIDENTE', val: 'incidente' }
+  { cls: '',          band: SST.ic('triangle-alert') + ' ACIDENTE GRAVE',             val: 'grave' },
+  { cls: 'leve',      band: SST.ic('triangle-alert') + ' ACIDENTE LEVE',              val: 'leve' },
+  { cls: 'incidente', band: SST.ic('triangle-alert') + ' INCIDENTE / QUASE ACIDENTE', val: 'incidente' }
 ];
 let sevIdx = 0;
 function setSeverity(val) {
@@ -43,7 +43,7 @@ function addRow(acao = {}) {
       <label style="display:flex;align-items:center;gap:4px;cursor:pointer"><input type="radio" name="rep${rn}" value="Sim"> Sim</label>
       <label style="display:flex;align-items:center;gap:4px;cursor:pointer"><input type="radio" name="rep${rn}" value="Não"> Não</label>
     </div></td>
-    <td class="col-x"><button type="button" class="btn-x" title="Remover linha">✕</button></td>`;
+    <td class="col-x"><button type="button" class="btn-x" title="Remover linha" aria-label="Remover linha">${SST.ic('trash-2', 14)}</button></td>`;
   tr.querySelector('[data-a=oque]').textContent = acao.oque || '';
   tr.querySelector('[data-a=quem]').textContent = acao.quem || '';
   const q = tr.querySelector('[data-a=quando]');
@@ -99,7 +99,7 @@ function desenharIshikawa() {
   const grid = document.getElementById('ishi-grid');
   grid.innerHTML = catalogo.map(g => `
     <div class="ishi-m" data-g="${g.id}" data-gn="${esc(g.nome)}" data-chave="${esc(g.chave || '')}">
-      <div class="ishi-m-header">${esc(g.icone)} ${esc(g.nome)}</div>
+      <div class="ishi-m-header">${SST.ic(SST.iconeGrupo(g))}<span>${esc(g.nome)}</span></div>
       <div class="ishi-m-body">${g.itens.map(it =>
         `<label class="ishi-option"><input type="checkbox" data-i="${it.id}"> ${esc(it.texto)}</label>`).join('')}</div>
     </div>`).join('');
@@ -182,7 +182,7 @@ function desenharFotos() {
     const btn = document.createElement('button');
     btn.className = 'foto-x';
     btn.type = 'button';
-    btn.textContent = '✕';
+    btn.innerHTML = SST.ic('x', 12);
     btn.title = 'Remover foto';
     btn.style.cssText = 'position:absolute;top:3px;right:3px;background:rgba(0,0,0,0.55);color:#fff;border:none;border-radius:50%;width:20px;height:20px;font-size:10px;cursor:pointer;line-height:1;padding:0;font-family:Arial,sans-serif;';
     btn.onclick = () => {
@@ -242,7 +242,7 @@ function marcarSujo() {
   if (carregandoForm) return;
   SST.alteracoes.sujo = true;
   const e = document.getElementById('estado');
-  e.textContent = '● Alterações não salvas'; e.className = 'estado sujo';
+  e.textContent = 'Alterações não salvas'; e.className = 'estado sujo';
 }
 function marcarLimpo(txt) {
   SST.alteracoes.sujo = false;
@@ -283,7 +283,7 @@ async function salvar() {
   const c = dados.campos;
   if (!c.unidade) { toast('Escolha a Unidade / Complexo antes de salvar. Ela faz parte do número do relatório.', 'erro', 5000); document.getElementById('unidade').focus(); return false; }
   if (c.data && !SST.dataISO(c.data)) { toast('A data da ocorrência está inválida. Use DD/MM/AAAA.', 'erro'); return false; }
-  b.disabled = true; b.textContent = '⏳ Salvando…';
+  b.disabled = true; b.innerHTML = SST.ic('loader-circle') + '<span>Salvando…</span>';
   try {
     const linha = {
       classificacao: c.classificacao || null,
@@ -308,16 +308,16 @@ async function salvar() {
     const { error } = await sb.from('relatorios').update({ ...linha, dados: dadosFinais }).eq('id', registro.id);
     if (error) throw error;
     desenharFotos();
-    marcarLimpo('✔ Salvo às ' + new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }));
+    marcarLimpo('Salvo às ' + new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }));
     const resp = document.getElementById('responsavel');
     const outro = !resp.hidden && resp.value !== perfil.id;
-    toast(`Relatório ${registro.numero} salvo.` + (outro ? ` Responsável: ${resp.selectedOptions[0].text.replace('👤 ', '')}.` : ''), 'ok', outro ? 5000 : 3500);
+    toast(`Relatório ${registro.numero} salvo.` + (outro ? ` Responsável: ${resp.selectedOptions[0].text}.` : ''), 'ok', outro ? 5000 : 3500);
     return true;
   } catch (e) {
     toast('Não foi possível salvar: ' + traduzErro(e), 'erro', 6000);
     return false;
   } finally {
-    b.disabled = false; b.textContent = '💾 Salvar';
+    b.disabled = false; b.innerHTML = SST.ic('save') + '<span>Salvar</span>';
   }
 }
 
@@ -352,10 +352,10 @@ let filho = null;   // { id, numero } do 5 Porquês ligado a esta NIAT
 async function atualizarFilho() {
   const b = document.getElementById('b-5pq');
   b.hidden = false;
-  if (!registro.id) { filho = null; b.textContent = '➕ Gerar 5 Porquês'; document.getElementById('filho-cab').hidden = true; return; }
+  if (!registro.id) { filho = null; b.innerHTML = SST.ic('list-tree') + '<span>Gerar 5 Porquês</span>'; document.getElementById('filho-cab').hidden = true; return; }
   const { data } = await sb.from('relatorios').select('id,numero').eq('tipo', '5pq').eq('niat_id', registro.id).limit(1);
   filho = data && data[0] ? data[0] : null;
-  b.textContent = filho ? '❓ Ver 5 Porquês' : '➕ Gerar 5 Porquês';
+  b.innerHTML = SST.ic('list-tree') + (filho ? '<span>Ver 5 Porquês</span>' : '<span>Gerar 5 Porquês</span>');
   b.title = filho ? `Abrir ${filho.numero} (relatório filho desta NIAT)` : 'Criar a análise dos 5 Porquês como relatório filho desta NIAT';
   const cab = document.getElementById('filho-cab');
   cab.hidden = !filho;
@@ -373,7 +373,7 @@ async function gerarOuAbrir5pq() {
   if (filho) { location.href = `cincoporques.html?id=${filho.id}`; return; }
   if (!confirm(`Gerar a análise dos 5 Porquês ligada à ${registro.numero}?\n\nEla fica registrada como relatório filho desta NIAT.`)) return;
 
-  b.disabled = true; b.textContent = '⏳ Gerando…';
+  b.disabled = true; b.innerHTML = SST.ic('loader-circle') + '<span>Gerando…</span>';
   try {
     const c = SST.lerCampos(document.getElementById('form'));
     const campos = {
@@ -429,7 +429,7 @@ async function gerarOuAbrir5pq() {
     if (id) {
       const ok = await carregar(id);
       if (!ok) {
-        document.getElementById('carregando').innerHTML = '<div class="vazio"><div class="ic">🔒</div>Relatório não encontrado ou você não tem permissão para abri-lo.<br><br><a class="btn primario" href="relatorios.html">Ir para a lista</a></div>';
+        document.getElementById('carregando').innerHTML = '<div class="vazio"><div class="ic">' + SST.ic('lock', 40) + '</div>Relatório não encontrado ou você não tem permissão para abri-lo.<br><br><a class="btn primario" href="relatorios.html">Ir para a lista</a></div>';
         return;
       }
     } else {

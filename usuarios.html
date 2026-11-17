@@ -42,12 +42,13 @@
     <div class="campo"><label for="ex-conf">Para confirmar, digite <b>EXCLUIR</b></label><input id="ex-conf" autocomplete="off"></div>
     <div style="display:flex;gap:8px;justify-content:flex-end">
       <button class="btn" value="cancelar" type="submit">Cancelar</button>
-      <button class="btn" id="ex-ok" type="button" style="background:var(--grave);border-color:var(--grave);color:#fff" disabled>🗑️ Excluir</button>
+      <button class="btn" id="ex-ok" type="button" style="background:var(--grave);border-color:var(--grave);color:#fff" disabled><i data-ic="trash-2"></i><span>Excluir</span></button>
     </div>
   </form>
 </dialog>
 
 <script src="js/vendor/supabase.js"></script>
+<script src="js/icones.js"></script>
 <script src="js/config.js"></script>
 <script src="js/app.js"></script>
 <script>
@@ -58,22 +59,22 @@ const $ = id => document.getElementById(id);
 function linha(u, pend) {
   const proprio = u.id === eu.id;
   const acoes = [];
-  if (u.situacao === 'pendente') acoes.push(`<button class="btn pequeno verde" data-a="aprovar">✔ Aprovar</button>`, `<button class="btn pequeno perigo" data-a="bloquear">Recusar</button>`, `<button class="btn pequeno perigo" data-a="excluir" title="Excluir cadastro">🗑️</button>`);
+  if (u.situacao === 'pendente') acoes.push(`<button class="btn pequeno verde" data-a="aprovar">${SST.ic('user-check', 14)}<span>Aprovar</span></button>`, `<button class="btn pequeno perigo" data-a="bloquear">Recusar</button>`, `<button class="btn pequeno perigo" data-a="excluir" title="Excluir cadastro" aria-label="Excluir cadastro">${SST.ic('trash-2', 14)}</button>`);
   else if (!proprio) {
-    if (u.situacao === 'ativo') acoes.push(`<button class="btn pequeno perigo" data-a="bloquear">🔒 Bloquear</button>`);
-    if (u.situacao === 'bloqueado') acoes.push(`<button class="btn pequeno" data-a="aprovar">🔓 Reativar</button>`);
+    if (u.situacao === 'ativo') acoes.push(`<button class="btn pequeno perigo" data-a="bloquear">${SST.ic('lock', 14)}<span>Bloquear</span></button>`);
+    if (u.situacao === 'bloqueado') acoes.push(`<button class="btn pequeno" data-a="aprovar">${SST.ic('lock-open', 14)}<span>Reativar</span></button>`);
     acoes.push(u.papel === 'admin'
-      ? `<button class="btn pequeno" data-a="padrao">Tornar padrão</button>`
-      : `<button class="btn pequeno" data-a="admin">Tornar administrador</button>`);
-    acoes.push(`<button class="btn pequeno perigo" data-a="excluir" title="Excluir usuário">🗑️ Excluir</button>`);
+      ? `<button class="btn pequeno" data-a="padrao">${SST.ic('user', 14)}<span>Tornar padrão</span></button>`
+      : `<button class="btn pequeno" data-a="admin">${SST.ic('shield-check', 14)}<span>Tornar administrador</span></button>`);
+    acoes.push(`<button class="btn pequeno perigo" data-a="excluir" title="Excluir usuário">${SST.ic('trash-2', 14)}<span>Excluir</span></button>`);
   }
   return `<tr data-id="${u.id}" style="cursor:default">
     <td><b>${esc(u.nome || '—')}</b>${proprio ? ' <span class="sub" style="display:inline">(você)</span>' : ''}<span class="sub">${esc(u.email)}</span></td>
     <td><span class="etiqueta ${u.papel}">${u.papel === 'admin' ? 'Administrador' : 'Padrão'}</span></td>
     <td><span class="etiqueta ${u.situacao}">${{ pendente: 'Pendente', ativo: 'Ativo', bloqueado: 'Bloqueado' }[u.situacao]}</span></td>
-    <td>${SST.dataHoraBR(u.criado_em)}</td>
+    <td style="white-space:nowrap">${SST.dataHoraBR(u.criado_em)}</td>
     <td>${pend ? '' : esc(u._qtd ?? 0)}</td>
-    <td class="acoes">${acoes.join(' ')}</td>
+    <td class="acoes"><div style="display:flex;gap:6px;justify-content:flex-end">${acoes.join('')}</div></td>
   </tr>`;
 }
 
@@ -124,7 +125,7 @@ function abrirExclusao(u) {
   $('ex-ok').onclick = async () => {
     $('ex-ok').disabled = true; $('ex-ok').textContent = 'Excluindo…';
     const { error } = await sb.rpc('excluir_usuario', { alvo: u.id, novo_responsavel: qtd ? $('ex-resp').value : null });
-    $('ex-ok').textContent = '🗑️ Excluir';
+    $('ex-ok').innerHTML = SST.ic('trash-2') + '<span>Excluir</span>';
     if (error) { $('ex-ok').disabled = false; return toast(traduzErro(error), 'erro', 6000); }
     dlg.close();
     if (qtd) { const novo = lista.find(x => x.id === $('ex-resp').value); if (novo) novo._qtd += qtd; }

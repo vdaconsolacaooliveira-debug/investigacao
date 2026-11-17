@@ -17,15 +17,15 @@
       <p id="sub">Pesquise pelo número, envolvido, unidade ou descrição.</p>
     </div>
     <div style="display:flex;gap:8px;flex-wrap:wrap" class="sst-noprint">
-      <a class="btn" href="relatorio-geral.html">📑 Relatório geral</a>
-      <button class="btn" id="b-csv" type="button">⬇️ Exportar planilha (CSV)</button>
-      <a class="btn" href="cincoporques.html">❓ Novo 5 Porquês</a>
-      <a class="btn primario" href="niat.html">📝 Nova NIAT</a>
+      <a class="btn" href="relatorio-geral.html"><i data-ic="file-text"></i><span>Relatório geral</span></a>
+      <button class="btn" id="b-csv" type="button"><i data-ic="file-spreadsheet"></i><span>Exportar planilha</span></button>
+      <a class="btn" href="cincoporques.html"><i data-ic="list-tree"></i><span>Novo 5 Porquês</span></a>
+      <a class="btn primario" href="niat.html"><i data-ic="file-plus-2"></i><span>Nova NIAT</span></a>
     </div>
   </div>
 
   <div class="sst-card filtros">
-    <input id="f-busca" type="search" placeholder="🔍  Pesquisar… (ex.: NIAT-FSF-008, Itamar, oficina)">
+    <input id="f-busca" type="search" placeholder="Pesquisar (ex.: NIAT-FSF-008, Itamar, oficina)">
     <select id="f-tipo"><option value="">Todos os tipos</option><option value="niat">NIAT</option><option value="5pq">5 Porquês</option></select>
     <select id="f-unidade"><option value="">Todas as unidades</option></select>
     <select id="f-ano"><option value="">Todos os anos</option></select>
@@ -49,6 +49,7 @@
 </main>
 
 <script src="js/vendor/supabase.js"></script>
+<script src="js/icones.js"></script>
 <script src="js/config.js"></script>
 <script src="js/app.js"></script>
 <script>
@@ -92,7 +93,7 @@ function filtrar() {
 function desenhar() {
   const l = filtrar();
   $('cab').innerHTML = colunas().map(([k, t]) =>
-    `<th ${k ? `data-ord="${k}"` : ''}>${t}${ordem.campo === k ? (ordem.desc ? ' ▾' : ' ▴') : ''}</th>`).join('');
+    `<th ${k ? `data-ord="${k}"` : ''}>${t}${ordem.campo === k ? SST.ic(ordem.desc ? 'chevron-down' : 'chevron-up', 12) : ''}</th>`).join('');
   $('cab').querySelectorAll('th[data-ord]').forEach(th => th.onclick = () => {
     const k = th.dataset.ord;
     ordem = { campo: k, desc: ordem.campo === k ? !ordem.desc : false };
@@ -100,13 +101,13 @@ function desenhar() {
   });
   $('contagem').textContent = `${l.length} de ${todos.length} relatório(s)`;
   if (!l.length) {
-    $('corpo').innerHTML = `<tr><td colspan="10"><div class="vazio"><div class="ic">🔎</div>${todos.length ? 'Nenhum relatório encontrado com esses filtros.' : 'Nenhum relatório cadastrado ainda.'}</div></td></tr>`;
+    $('corpo').innerHTML = `<tr><td colspan="10"><div class="vazio"><div class="ic">${SST.ic('search-x', 40)}</div>${todos.length ? 'Nenhum relatório encontrado com esses filtros.' : 'Nenhum relatório cadastrado ainda.'}</div></td></tr>`;
     return;
   }
   const admin = perfil.papel === 'admin';
   $('corpo').innerHTML = l.map(r => `
     <tr data-id="${r.id}" data-tipo="${r.tipo}">
-      <td class="num">${esc(r.numero)}${r.niat_numero ? `<span class="sub" title="Relatório pai">↑ pai: ${esc(r.niat_numero)}</span>` : ''}${r._filho ? `<span class="sub" title="Relatório filho">↳ filho: ${esc(r._filho)}</span>` : ''}</td>
+      <td class="num">${esc(r.numero)}${r.niat_numero ? `<span class="sub" title="Relatório pai">${SST.ic('corner-left-up', 11)} pai: ${esc(r.niat_numero)}</span>` : ''}${r._filho ? `<span class="sub" title="Relatório filho">${SST.ic('corner-down-right', 11)} filho: ${esc(r._filho)}</span>` : ''}</td>
       <td><span class="etiqueta ${r.tipo === 'niat' ? 'niat' : 'pq'}">${TIPOS[r.tipo].curto}</span></td>
       <td>${esc(r.unidade_nome)}</td>
       <td>${SST.dataBR(r.data_ocorrencia) || '—'}</td>
@@ -115,7 +116,7 @@ function desenhar() {
       <td><span class="etiqueta ${r.situacao}">${r.situacao === 'concluido' ? 'Concluído' : 'Rascunho'}</span></td>
       ${admin ? `<td>${esc(r.responsavel_nome || '—')}${r.criado_por !== r.responsavel && r.autor ? `<span class="sub">criado por ${esc(SST.primeiroNome(r.autor))}</span>` : ''}</td>` : ''}
       <td>${SST.dataHoraBR(r.atualizado_em)}</td>
-      <td class="acoes">${admin ? `<button class="btn pequeno perigo" data-excluir="${r.id}" title="Excluir">🗑️</button>` : ''}</td>
+      <td class="acoes">${admin ? `<button class="btn pequeno perigo" data-excluir="${r.id}" title="Excluir" aria-label="Excluir">${SST.ic('trash-2', 14)}</button>` : ''}</td>
     </tr>`).join('');
   $('corpo').querySelectorAll('tr[data-id]').forEach(tr => tr.onclick = e => {
     if (e.target.closest('[data-excluir]')) return;

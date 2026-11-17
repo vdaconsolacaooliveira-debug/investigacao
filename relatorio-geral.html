@@ -90,8 +90,8 @@
         <button type="button" data-modo="grupo" class="on">Por investigação</button>
         <button type="button" data-modo="tabela">Tabela única</button>
       </div>
-      <button class="btn" id="b-csv" type="button">⬇️ Planilha (CSV)</button>
-      <button class="btn primario" id="b-imprimir" type="button">🖨️ Imprimir / PDF</button>
+      <button class="btn" id="b-csv" type="button"><i data-ic="file-spreadsheet"></i><span>Exportar planilha</span></button>
+      <button class="btn primario" id="b-imprimir" type="button"><i data-ic="printer"></i><span>Imprimir / PDF</span></button>
     </div>
   </div>
 
@@ -113,6 +113,7 @@
 </main>
 
 <script src="js/vendor/supabase.js"></script>
+<script src="js/icones.js"></script>
 <script src="js/config.js"></script>
 <script src="js/app.js"></script>
 <script>
@@ -290,9 +291,9 @@ function desenhar() {
   $('resumo').innerHTML = [
     [lista.filter(x => x.r.tipo === 'niat').length, 'NIATs'], [lista.filter(x => x.r.tipo === '5pq').length, '5 Porquês'],
     [acs.length, 'Ações listadas'], [cnt('pendente') + cnt('andamento') + cnt('atrasada'), 'Abertas'],
-    [cnt('atrasada'), '⚠️ Atrasadas', 'atr'], [cnt('concluida'), 'Concluídas']
+    [cnt('atrasada'), 'Atrasadas', 'atr'], [cnt('concluida'), 'Concluídas']
   ].map(([v, r, cls]) => `<div class="item ${cls || ''}"><b>${v}</b><span>${r}</span></div>`).join('');
-  $('saida').innerHTML = !lista.length ? '<div class="sst-card vazio"><div class="ic">🔎</div>Nenhuma investigação no filtro atual.</div>'
+  $('saida').innerHTML = !lista.length ? '<div class="sst-card vazio"><div class="ic">' + SST.ic('search-x', 40) + '</div>Nenhuma investigação no filtro atual.</div>'
     : modo === 'grupo' ? lista.map(blocoInvestigacao).join('') : tabelaUnica(lista);
   const partes = [];
   [['f-tecnico', 'Técnico'], ['f-unidade', 'Unidade'], ['f-ano', 'Ano'], ['f-classif', 'Classificação'], ['f-st', 'Situação da ação']].forEach(([id, rot]) => {

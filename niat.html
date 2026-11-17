@@ -315,6 +315,25 @@
     .toolbar, .col-x, .btn-x, .btn-foto, .foto-x, #ishi-editar { display: none !important; }
     .page { box-shadow: none !important; }
   }
+
+  .toolbar button { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; line-height: 1.2; }
+  .toolbar button svg.ic { width: 15px; height: 15px; }
+  .toolbar select { white-space: nowrap; }
+  .severity-band svg.ic { width: 16px; height: 16px; vertical-align: -3px; margin-right: 2px; }
+  .w-label { display: inline-flex; align-items: center; justify-content: center; gap: 5px; }
+  .w-label svg.ic { width: 12px; height: 12px; }
+  .ishi-m-header { display: flex; align-items: center; gap: 7px; }
+  .ishi-m-header svg.ic { width: 15px; height: 15px; opacity: .9; }
+  #ishi-editar { display: inline-flex; align-items: center; gap: 4px; }
+  #ishi-editar svg.ic { width: 12px; height: 12px; }
+  .btn-foto svg.ic { width: 15px; height: 15px; }
+
+  @media (max-width: 1240px) {
+    .toolbar #sev-select { max-width: 150px; }
+    .toolbar #situacao { max-width: 112px; }
+    .toolbar #responsavel { max-width: 150px; }
+    .toolbar button[onclick="window.print()"] span { display: none; }
+  }
 </style>
 </head>
 <body>
@@ -325,19 +344,19 @@
 <div class="toolbar">
   <span class="num-doc novo" id="num-doc">Novo relatório</span>
   <select id="sev-select" onchange="setSeverity(this.value)" title="Classificação">
-    <option value="grave">🔴 Acidente Grave</option>
-    <option value="leve">🟠 Acidente Leve</option>
-    <option value="incidente">🟢 Incidente / Quase Acidente</option>
+    <option value="grave">Acidente Grave</option>
+    <option value="leve">Acidente Leve</option>
+    <option value="incidente">Incidente / Quase Acidente</option>
   </select>
   <select id="situacao" title="Situação do relatório">
-    <option value="rascunho">✏️ Rascunho</option>
-    <option value="concluido">✅ Concluído</option>
+    <option value="rascunho">Rascunho</option>
+    <option value="concluido">Concluído</option>
   </select>
   <select id="responsavel" hidden title="Responsável: quem vai ver e editar este relatório"></select>
-  <button class="primary" id="b-salvar" type="button">💾 Salvar</button>
-  <button type="button" onclick="window.print()" title="Imprimir ou salvar como PDF">🖨️ Imprimir</button>
-  <button type="button" id="b-hist" hidden title="Histórico de alterações deste relatório">🕘</button>
-  <button type="button" id="b-5pq" hidden>➕ Gerar 5 Porquês</button>
+  <button class="primary" id="b-salvar" type="button"><i data-ic="save"></i><span>Salvar</span></button>
+  <button type="button" onclick="window.print()" title="Imprimir ou salvar como PDF"><i data-ic="printer"></i><span>Imprimir</span></button>
+  <button type="button" id="b-hist" hidden title="Histórico de alterações deste relatório" aria-label="Histórico"><i data-ic="history"></i></button>
+  <button type="button" id="b-5pq" hidden><i data-ic="list-tree"></i><span>Gerar 5 Porquês</span></button>
   <span class="estado" id="estado"></span>
 </div>
 
@@ -358,7 +377,7 @@
 
   <!-- SEVERITY -->
   <div class="severity-band" id="sev-band" onclick="cycleSeverity()">
-    ⚠ ACIDENTE GRAVE
+    <i data-ic="triangle-alert"></i> ACIDENTE GRAVE
     <span class="sev-hint">(clique para alternar classificação)</span>
   </div>
 
@@ -470,12 +489,12 @@
   <div class="section">
     <div class="section-title">3. 5W1H — O que aconteceu?</div>
     <div class="w1h-grid">
-      <div class="w-item"><div class="w-label">📅 Quando?</div><div class="w-value" contenteditable="true" data-f="w_quando"></div></div>
-      <div class="w-item"><div class="w-label">📍 Onde?</div><div class="w-value" contenteditable="true" data-f="w_onde"></div></div>
-      <div class="w-item"><div class="w-label">👤 Quem?</div><div class="w-value" contenteditable="true" data-f="w_quem"></div></div>
-      <div class="w-item"><div class="w-label">🔎 O quê?</div><div class="w-value" contenteditable="true" data-f="w_oque" style="min-height:40px"></div></div>
-      <div class="w-item"><div class="w-label">❓ Por quê?</div><div class="w-value" contenteditable="true" data-f="w_porque" style="min-height:40px"></div></div>
-      <div class="w-item"><div class="w-label">⚙️ Como?</div><div class="w-value" contenteditable="true" data-f="w_como" style="min-height:40px"></div></div>
+      <div class="w-item"><div class="w-label"><i data-ic="calendar"></i>Quando?</div><div class="w-value" contenteditable="true" data-f="w_quando"></div></div>
+      <div class="w-item"><div class="w-label"><i data-ic="map-pin"></i>Onde?</div><div class="w-value" contenteditable="true" data-f="w_onde"></div></div>
+      <div class="w-item"><div class="w-label"><i data-ic="user"></i>Quem?</div><div class="w-value" contenteditable="true" data-f="w_quem"></div></div>
+      <div class="w-item"><div class="w-label"><i data-ic="search"></i>O quê?</div><div class="w-value" contenteditable="true" data-f="w_oque" style="min-height:40px"></div></div>
+      <div class="w-item"><div class="w-label"><i data-ic="circle-help"></i>Por quê?</div><div class="w-value" contenteditable="true" data-f="w_porque" style="min-height:40px"></div></div>
+      <div class="w-item"><div class="w-label"><i data-ic="cog"></i>Como?</div><div class="w-value" contenteditable="true" data-f="w_como" style="min-height:40px"></div></div>
     </div>
   </div>
 
@@ -495,7 +514,7 @@
     <label style="font-size:9px;font-weight:700;text-transform:uppercase;color:#999;letter-spacing:0.4px;display:block;margin-bottom:8px">Fotos</label>
     <div id="fotos-container" style="display:flex;flex-wrap:wrap;gap:10px;margin-bottom:10px"></div>
     <label class="btn-foto" style="display:inline-flex;align-items:center;gap:6px;background:#1a3a5c;color:#fff;padding:7px 16px;border-radius:4px;font-size:12px;font-weight:bold;cursor:pointer;font-family:Arial,sans-serif;">
-      📷 Adicionar foto
+      <i data-ic="camera"></i> Adicionar foto
       <input type="file" accept="image/*" multiple style="display:none" onchange="adicionarFotos(this)">
     </label>
   </div>
@@ -504,7 +523,7 @@
   <div class="section">
     <div class="section-title" style="display:flex;justify-content:space-between;align-items:center">
       <span id="ishi-titulo">6. Diagrama de Ishikawa — Análise de Causas (6Ms)</span>
-      <a id="ishi-editar" href="configuracoes.html" hidden style="font-size:10px;color:#1a3a5c;text-decoration:none;font-weight:700;text-transform:none;letter-spacing:0">✏️ Editar lista</a>
+      <a id="ishi-editar" href="configuracoes.html" hidden style="font-size:10px;color:#1a3a5c;text-decoration:none;font-weight:700;text-transform:none;letter-spacing:0"><i data-ic="pencil"></i> Editar lista</a>
     </div>
     <div class="ishikawa-grid" id="ishi-grid"></div>
 
@@ -561,6 +580,7 @@
 </div><!-- /conteudo -->
 
 <script src="js/vendor/supabase.js"></script>
+<script src="js/icones.js"></script>
 <script src="js/config.js"></script>
 <script src="js/app.js"></script>
 <script src="js/form-niat.js"></script>

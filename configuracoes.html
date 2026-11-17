@@ -14,9 +14,13 @@
   .grupo-cab input { background: rgba(255,255,255,.1); border: 1px solid transparent; color: #fff; font: inherit; border-radius: 5px; padding: 6px 8px; outline: none; }
   .grupo-cab input:hover { border-color: rgba(255,255,255,.25); }
   .grupo-cab input:focus { border-color: var(--dourado); background: rgba(255,255,255,.18); }
-  .grupo-cab .ic { width: 44px; text-align: center; font-size: 16px; }
+  .grupo-cab .ic-atual { display: inline-flex; width: 30px; height: 30px; align-items: center; justify-content: center; background: rgba(255,255,255,.12); border-radius: 6px; flex-shrink: 0; }
+  .grupo-cab .ic-sel { background: rgba(255,255,255,.1); color: #fff; border: 1px solid transparent; border-radius: 5px; padding: 5px 4px; font: inherit; font-size: 11px; max-width: 98px; cursor: pointer; }
+  .grupo-cab .ic-sel option { color: #1a1a1a; }
+  .grupo-cab .ic-sel:hover { border-color: rgba(255,255,255,.3); }
   .grupo-cab .nome { flex: 1; font-weight: 700; text-transform: uppercase; letter-spacing: .4px; font-size: 13px; }
   .grupo-cab button, .item button {
+    display: inline-flex; align-items: center; justify-content: center;
     background: none; border: 1px solid transparent; color: inherit; cursor: pointer; border-radius: 5px;
     padding: 4px 7px; font-size: 13px; line-height: 1; opacity: .75;
   }
@@ -46,7 +50,7 @@
       <h1>Diagrama de Ishikawa — lista de causas</h1>
       <p>Edite os grupos (os "Ms") e os itens que aparecem para marcar na NIAT. Só o Administrador tem acesso a esta tela.</p>
     </div>
-    <button class="btn primario" id="b-grupo" type="button">➕ Novo grupo</button>
+    <button class="btn primario" id="b-grupo" type="button"><i data-ic="plus"></i><span>Novo grupo</span></button>
   </div>
 
   <div class="alerta info">
@@ -59,11 +63,14 @@
 </main>
 
 <script src="js/vendor/supabase.js"></script>
+<script src="js/icones.js"></script>
 <script src="js/config.js"></script>
 <script src="js/app.js"></script>
 <script>
 const { sb, esc, toast, traduzErro } = SST;
 let grupos = [];
+const ROT_IC = { 'hard-hat': 'Capacete', tractor: 'Trator', 'clipboard-list': 'Prancheta', package: 'Caixa', leaf: 'Folha', gauge: 'Medidor',
+  wrench: 'Ferramenta', users: 'Pessoas', 'shield-check': 'Escudo', ruler: 'Régua', flag: 'Bandeira', cog: 'Engrenagem', 'circle-alert': 'Alerta', tag: 'Etiqueta' };
 const $ = id => document.getElementById(id);
 
 async function carregar() {
@@ -75,25 +82,26 @@ function desenhar() {
   $('grupos').innerHTML = grupos.map((g, gi) => `
     <section class="sst-card grupo" data-g="${g.id}">
       <div class="grupo-cab">
-        <input class="ic" value="${esc(g.icone)}" maxlength="4" title="Ícone (emoji)" data-campo="icone">
+        <span class="ic-atual">${SST.ic(SST.iconeGrupo(g), 18)}</span>
+        <select class="ic-sel" data-campo="icone" title="Ícone do grupo">${SST.ICONES_GRUPO.map(n => `<option value="${n}" ${n === SST.iconeGrupo(g) ? 'selected' : ''}>${ROT_IC[n]}</option>`).join('')}</select>
         <input class="nome" value="${esc(g.nome)}" title="Nome do grupo" data-campo="nome">
-        <button data-acao="g-sobe" title="Mover para antes" ${gi === 0 ? 'disabled style="opacity:.25"' : ''}>▲</button>
-        <button data-acao="g-desce" title="Mover para depois" ${gi === grupos.length - 1 ? 'disabled style="opacity:.25"' : ''}>▼</button>
-        <button data-acao="g-remove" title="Remover grupo">🗑️</button>
+        <button data-acao="g-sobe" title="Mover para antes" ${gi === 0 ? 'disabled style="opacity:.25"' : ''}>${SST.ic('chevron-up')}</button>
+        <button data-acao="g-desce" title="Mover para depois" ${gi === grupos.length - 1 ? 'disabled style="opacity:.25"' : ''}>${SST.ic('chevron-down')}</button>
+        <button data-acao="g-remove" title="Remover grupo">${SST.ic('trash-2')}</button>
       </div>
       <div class="itens">
         ${g.itens.map((it, ii) => `
           <div class="item" data-i="${it.id}">
             <span class="marca"></span>
             <input value="${esc(it.texto)}" title="Texto do item">
-            <button data-acao="i-sobe" title="Subir" ${ii === 0 ? 'disabled style="opacity:.2"' : ''}>▲</button>
-            <button data-acao="i-desce" title="Descer" ${ii === g.itens.length - 1 ? 'disabled style="opacity:.2"' : ''}>▼</button>
-            <button data-acao="i-remove" class="rem" title="Remover item">✕</button>
+            <button data-acao="i-sobe" title="Subir" ${ii === 0 ? 'disabled style="opacity:.2"' : ''}>${SST.ic('chevron-up', 14)}</button>
+            <button data-acao="i-desce" title="Descer" ${ii === g.itens.length - 1 ? 'disabled style="opacity:.2"' : ''}>${SST.ic('chevron-down', 14)}</button>
+            <button data-acao="i-remove" class="rem" title="Remover item">${SST.ic('x', 14)}</button>
           </div>`).join('') || '<div class="sub" style="color:var(--cinza);font-size:12px;padding:6px">Nenhum item. Adicione abaixo.</div>'}
       </div>
       <div class="novo-item">
         <input placeholder="Novo item…" data-novo>
-        <button class="btn pequeno" data-acao="i-novo">+ Adicionar</button>
+        <button class="btn pequeno" data-acao="i-novo">${SST.ic('plus', 14)}<span>Adicionar</span></button>
       </div>
     </section>`).join('') || '<div class="sst-card vazio">Nenhum grupo. Clique em "Novo grupo".</div>';
   ligar();
@@ -101,7 +109,7 @@ function desenhar() {
 
 function ligar() {
   // edição do grupo
-  document.querySelectorAll('.grupo-cab input').forEach(inp => {
+  document.querySelectorAll('.grupo-cab input.nome').forEach(inp => {
     const g = () => grupos.find(x => x.id === inp.closest('[data-g]').dataset.g);
     inp.onkeydown = e => { if (e.key === 'Enter') inp.blur(); if (e.key === 'Escape') { inp.value = g()[inp.dataset.campo]; inp.blur(); } };
     inp.onblur = async () => {
@@ -113,6 +121,12 @@ function ligar() {
       grupo[campo] = v; inp.classList.add('salvo'); setTimeout(() => inp.classList.remove('salvo'), 1000);
     };
   });
+  document.querySelectorAll('.grupo-cab .ic-sel').forEach(sel => sel.onchange = async () => {
+    const g = grupos.find(x => x.id === sel.closest('[data-g]').dataset.g);
+    const { error } = await sb.from('ishikawa_grupos').update({ icone: sel.value }).eq('id', g.id);
+    if (error) { sel.value = SST.iconeGrupo(g); return toast(traduzErro(error), 'erro'); }
+    g.icone = sel.value; sel.parentElement.querySelector('.ic-atual').innerHTML = SST.ic(sel.value, 18);
+  });
   // edição do item
   document.querySelectorAll('.item input').forEach(inp => {
     const achar = () => { const g = grupos.find(x => x.id === inp.closest('[data-g]').dataset.g); return g.itens.find(x => x.id === inp.closest('[data-i]').dataset.i); };
@@ -120,7 +134,7 @@ function ligar() {
     inp.onblur = async () => {
       const it = achar(), v = inp.value.trim();
       if (v === it.texto) return;
-      if (!v) { inp.value = it.texto; return toast('Para apagar o item, use o ✕.', 'erro'); }
+      if (!v) { inp.value = it.texto; return toast('Para apagar o item, use o botão de remover (x).', 'erro'); }
       const { error } = await sb.from('ishikawa_itens').update({ texto: v }).eq('id', it.id);
       if (error) { inp.value = it.texto; return toast(traduzErro(error), 'erro'); }
       it.texto = v; inp.classList.add('salvo'); setTimeout(() => inp.classList.remove('salvo'), 1000);
@@ -184,7 +198,7 @@ $('b-grupo').onclick = async () => {
   const nome = prompt('Nome do novo grupo (ex.: Gestão, Comunicação):');
   if (!nome || !nome.trim()) return;
   const ordem = (grupos.length ? Math.max(...grupos.map(x => x.ordem)) : 0) + 10;
-  const { data, error } = await sb.from('ishikawa_grupos').insert({ nome: nome.trim(), icone: '📌', ordem }).select().single();
+  const { data, error } = await sb.from('ishikawa_grupos').insert({ nome: nome.trim(), icone: 'tag', ordem }).select().single();
   if (error) return toast(traduzErro(error), 'erro');
   grupos.push({ ...data, itens: [] }); desenhar();
   document.querySelector(`[data-g="${data.id}"] [data-novo]`).focus();

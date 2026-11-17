@@ -42,13 +42,13 @@
       <p id="sub">Quem alterou o quê e quando. Só o Administrador vê esta tela.</p>
     </div>
     <div style="display:flex;gap:8px">
-      <a class="btn" id="b-limpar" href="historico.html" hidden>✕ Ver todo o histórico</a>
-      <button class="btn" id="b-csv" type="button">⬇️ Exportar (CSV)</button>
+      <a class="btn" id="b-limpar" href="historico.html" hidden><i data-ic="x"></i><span>Ver todo o histórico</span></a>
+      <button class="btn" id="b-csv" type="button"><i data-ic="file-spreadsheet"></i><span>Exportar planilha</span></button>
     </div>
   </div>
 
   <div class="sst-card filtros hist">
-    <input id="f-busca" type="search" placeholder="🔍  Pesquisar (nº do relatório, nome, texto alterado…)">
+    <input id="f-busca" type="search" placeholder="Pesquisar (nº do relatório, nome, texto alterado)">
     <select id="f-usuario"><option value="">Todos os usuários</option></select>
     <select id="f-tabela">
       <option value="">Tudo</option>
@@ -74,6 +74,7 @@
 </main>
 
 <script src="js/vendor/supabase.js"></script>
+<script src="js/icones.js"></script>
 <script src="js/config.js"></script>
 <script src="js/app.js"></script>
 <script>
@@ -171,7 +172,7 @@ function SST_norm(t) { return String(t || '').normalize('NFD').replace(/[̀-ͯ]/
 function desenhar() {
   const l = filtrar();
   $('contagem').textContent = `${l.length} de ${todos.length} registro(s)`;
-  if (!l.length) { $('corpo').innerHTML = `<tr><td colspan="5"><div class="vazio"><div class="ic">🕘</div>Nenhum registro encontrado.</div></td></tr>`; return; }
+  if (!l.length) { $('corpo').innerHTML = `<tr><td colspan="5"><div class="vazio"><div class="ic">${SST.ic('history', 40)}</div>Nenhum registro encontrado.</div></td></tr>`; return; }
   $('corpo').innerHTML = l.map(r => {
     const muds = (r.mudancas || []);
     const corte = 8;

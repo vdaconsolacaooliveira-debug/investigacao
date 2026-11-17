@@ -120,20 +120,21 @@
     el.className = 'sst-appbar';
     const admin = perfil.papel === 'admin';
     const links = [
-      ['inicio', 'index.html', '🏠', 'Início'],
-      ['niat', 'niat.html', '📝', 'Nova NIAT'],
-      ['5pq', 'cincoporques.html', '❓', 'Novo 5 Porquês'],
-      ['lista', 'relatorios.html', '📂', 'Relatórios'],
-      ['painel', 'painel.html', '📊', 'Painel']
+      // Para o Administrador, o Início é o painel de acompanhamento
+      admin ? ['painel', 'painel.html', 'layout-dashboard', 'Início'] : ['inicio', 'index.html', 'house', 'Início'],
+      ['niat', 'niat.html', 'file-plus-2', 'Nova NIAT'],
+      ['5pq', 'cincoporques.html', 'list-tree', 'Novo 5 Porquês'],
+      ['lista', 'relatorios.html', 'folder-open', 'Relatórios']
     ];
-    if (admin) links.push(['usuarios', 'usuarios.html', '👥', 'Usuários'], ['config', 'configuracoes.html', '⚙️', 'Configurações'], ['historico', 'historico.html', '🕘', 'Histórico']);
+    if (admin) links.push(['usuarios', 'usuarios.html', 'users', 'Usuários'], ['config', 'configuracoes.html', 'settings', 'Configurações'], ['historico', 'historico.html', 'history', 'Histórico']);
+    else links.push(['painel', 'painel.html', 'layout-dashboard', 'Painel']);
     el.innerHTML = `
-      <a class="marca" href="index.html">
+      <a class="marca" href="${admin ? 'painel.html' : 'index.html'}">
         <img src="img/logo-db.png" alt="DB Agronegócios">
         <span><b>Sistema SST</b><small>Segurança do Trabalho</small></span>
       </a>
       <nav>${links.map(([k, href, ic, t]) =>
-        `<a href="${href}" class="${k === ativo ? 'ativo' : ''}" data-k="${k}">${ic} ${t}${k === 'usuarios' ? '<span class="badge" id="badge-pend" hidden></span>' : ''}</a>`).join('')}
+        `<a href="${href}" class="${k === ativo ? 'ativo' : ''}" data-k="${k}">${window.ic(ic)}<span>${t}</span>${k === 'usuarios' ? '<span class="badge" id="badge-pend" hidden></span>' : ''}</a>`).join('')}
       </nav>
       <div class="usuario">
         <div class="nome-bloco" style="text-align:right">
@@ -141,7 +142,7 @@
           <div class="papel">${admin ? 'Administrador' : 'Usuário padrão'}</div>
         </div>
         <div class="avatar" title="${esc(perfil.email)}">${esc(iniciais(perfil.nome || perfil.email))}</div>
-        <button class="sair" type="button">Sair</button>
+        <button class="sair" type="button" title="Sair do sistema">${window.ic('log-out')}<span>Sair</span></button>
       </div>`;
     el.querySelector('button.sair').onclick = sair;
     if (admin) {
@@ -176,11 +177,11 @@
 
   // ── Ações (plano de ação da NIAT e ações das cadeias do 5 Porquês) ─
   const STATUS_ACAO = {
-    pendente:  { rotulo: 'Pendente',     ic: '⏳', cor: '#eda100' },
-    andamento: { rotulo: 'Em andamento', ic: '🔄', cor: '#2a78d6' },
-    concluida: { rotulo: 'Concluída',    ic: '✅', cor: '#0ca30c' },
-    cancelada: { rotulo: 'Cancelada',    ic: '⛔', cor: '#9aa5b1' },
-    atrasada:  { rotulo: 'Atrasada',     ic: '⚠️', cor: '#d03b3b' }   // calculado, não se escolhe
+    pendente:  { rotulo: 'Pendente',     ic: 'hourglass',      cor: '#eda100' },
+    andamento: { rotulo: 'Em andamento', ic: 'refresh-cw',     cor: '#2a78d6' },
+    concluida: { rotulo: 'Concluída',    ic: 'circle-check',   cor: '#0ca30c' },
+    cancelada: { rotulo: 'Cancelada',    ic: 'ban',            cor: '#9aa5b1' },
+    atrasada:  { rotulo: 'Atrasada',     ic: 'triangle-alert', cor: '#d03b3b' }   // calculado, não se escolhe
   };
   function hojeISO() {
     const d = new Date(), p = n => String(n).padStart(2, '0');
@@ -197,7 +198,7 @@
   function novoId() { return (crypto.randomUUID ? crypto.randomUUID() : Date.now().toString(36) + Math.random().toString(36).slice(2)); }
   function opcoesStatus(valor) {
     return ['pendente', 'andamento', 'concluida', 'cancelada'].map(k =>
-      `<option value="${k}" ${k === (valor || 'pendente') ? 'selected' : ''}>${STATUS_ACAO[k].ic} ${STATUS_ACAO[k].rotulo}</option>`).join('');
+      `<option value="${k}" ${k === (valor || 'pendente') ? 'selected' : ''}>${STATUS_ACAO[k].rotulo}</option>`).join('');
   }
   // Mantém a data de conclusão coerente com o status
   function ajustarConclusao(a) {
@@ -217,6 +218,13 @@
     return g.data.map(gr => ({ ...gr, itens: i.data.filter(it => it.grupo_id === gr.id) }));
   }
 
+  const ICONES_GRUPO = ['hard-hat', 'tractor', 'clipboard-list', 'package', 'leaf', 'gauge', 'wrench', 'users', 'shield-check', 'ruler', 'flag', 'cog', 'circle-alert', 'tag'];
+  const GRUPO_PADRAO = { mao_de_obra: 'hard-hat', maquina: 'tractor', metodo: 'clipboard-list', material: 'package', meio_ambiente: 'leaf', medicao: 'gauge' };
+  function iconeGrupo(g) {
+    if (g && window.ICONES && window.ICONES.nomes.includes(g.icone)) return g.icone;
+    return (g && GRUPO_PADRAO[g.chave]) || 'tag';
+  }
+
   // ── Usuários ativos (para o Administrador escolher o responsável) ─
   async function usuariosAtivos() {
     const { data, error } = await sb.from('perfis').select('id,nome,email,papel').eq('situacao', 'ativo').order('nome');
@@ -228,7 +236,7 @@
     if (perfil.papel !== 'admin') { select.hidden = true; return false; }
     const lista = await usuariosAtivos();
     select.innerHTML = lista.map(u =>
-      `<option value="${u.id}">👤 ${esc(u.nome || u.email)}${u.id === perfil.id ? ' (eu)' : ''}</option>`).join('');
+      `<option value="${u.id}">${esc(u.nome || u.email)}${u.id === perfil.id ? ' (eu)' : ''}</option>`).join('');
     select.value = valor || perfil.id;
     select.hidden = false;
     return true;
@@ -299,7 +307,7 @@
 
   window.SST = {
     sb, CLASSIF, TIPOS, esc, hojeBR, dataISO, dataBR, dataHoraBR, iniciais, primeiroNome, param,
-    traduzErro, toast, sessao, perfilAtual, exigirLogin, sair, barra, unidades, preencherUnidades,
-    siglaDe, STATUS_ACAO, hojeISO, situacaoAcao, novoId, opcoesStatus, ajustarConclusao, catalogoIshikawa, usuariosAtivos, seletorResponsavel, comprimirImagem, urlsFotos, lerCampos, escreverCampos, alteracoes
+    traduzErro, toast, ic: (n, t) => window.ic(n, t), sessao, perfilAtual, exigirLogin, sair, barra, unidades, preencherUnidades,
+    siglaDe, ICONES_GRUPO, iconeGrupo, STATUS_ACAO, hojeISO, situacaoAcao, novoId, opcoesStatus, ajustarConclusao, catalogoIshikawa, usuariosAtivos, seletorResponsavel, comprimirImagem, urlsFotos, lerCampos, escreverCampos, alteracoes
   };
 })();

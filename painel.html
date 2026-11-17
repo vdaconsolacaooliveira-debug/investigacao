@@ -42,7 +42,8 @@
   .bloco table.tabela td, .bloco table.tabela th { padding: 9px 10px; }
   .bloco table.tabela tbody tr { cursor: default; }
   .num-r { text-align: right; font-variant-numeric: tabular-nums; }
-  td.num-r b.atr { color: var(--st-atrasada); }
+  b.atr { color: var(--st-atrasada); display: inline-flex; align-items: center; gap: 3px; }
+  .kpi .r { display: flex; align-items: center; gap: 4px; }
 
   .progresso { display: flex; align-items: center; gap: 8px; min-width: 150px; }
   .progresso .barra { flex: 1; height: 8px; border-radius: 4px; background: var(--grid); overflow: hidden; display: flex; gap: 2px; }
@@ -108,13 +109,15 @@
 
   <div class="sst-titulo sem-impressao">
     <div>
-      <h1>Painel de acompanhamento</h1>
-      <p id="sub">Em que pé está cada relatório e cada ação.</p>
+      <h1 id="titulo-painel">Painel de acompanhamento</h1>
+      <p id="sub">Painel de acompanhamento: em que pé está cada relatório e cada ação.</p>
     </div>
     <div class="acoes-topo" style="display:flex;gap:8px;flex-wrap:wrap">
-      <a class="btn" href="relatorio-geral.html">📑 Relatório geral das investigações</a>
-      <button class="btn" id="b-csv" type="button">⬇️ Ações em planilha (CSV)</button>
-      <button class="btn primario" id="b-imprimir" type="button">🖨️ Gerar relatório (PDF)</button>
+      <a class="btn" href="relatorio-geral.html"><i data-ic="file-text"></i><span>Relatório geral</span></a>
+      <button class="btn" id="b-csv" type="button"><i data-ic="file-spreadsheet"></i><span>Exportar ações</span></button>
+      <button class="btn" id="b-imprimir" type="button"><i data-ic="printer"></i><span>Imprimir painel</span></button>
+      <a class="btn" href="cincoporques.html"><i data-ic="list-tree"></i><span>Novo 5 Porquês</span></a>
+      <a class="btn primario" href="niat.html"><i data-ic="file-plus-2"></i><span>Nova NIAT</span></a>
     </div>
   </div>
 
@@ -173,11 +176,11 @@
         <select id="fa-status">
           <option value="abertas">Só abertas (pendente, em andamento, atrasada)</option>
           <option value="">Todas</option>
-          <option value="atrasada">⚠️ Atrasadas</option>
-          <option value="pendente">⏳ Pendentes</option>
-          <option value="andamento">🔄 Em andamento</option>
-          <option value="concluida">✅ Concluídas</option>
-          <option value="cancelada">⛔ Canceladas</option>
+          <option value="atrasada">Atrasadas</option>
+          <option value="pendente">Pendentes</option>
+          <option value="andamento">Em andamento</option>
+          <option value="concluida">Concluídas</option>
+          <option value="cancelada">Canceladas</option>
         </select>
         <input id="fa-busca" type="search" placeholder="Pesquisar ação ou pessoa…">
       </div>
@@ -188,6 +191,7 @@
 
 <script src="js/vendor/supabase.js"></script>
 <script src="js/vendor/chart.umd.min.js"></script>
+<script src="js/icones.js"></script>
 <script src="js/config.js"></script>
 <script src="js/app.js"></script>
 <script>
@@ -269,15 +273,16 @@ function desenharKpis(rs, acs) {
   const c = contar(acs);
   const inv = rs.filter(r => r._etapa === 'investigacao').length;
   const graves = rs.filter(r => r.classificacao === 'grave').length;
+  const pl = (n, um, varios) => `${n} ${n === 1 ? um : varios}`;
   const k = (v, r, s = '', cls = '') => `<div class="sst-card kpi ${cls}"><div class="v">${v}</div><div class="r">${r}</div>${s}</div>`;
   $('kpis').innerHTML =
-    k(rs.length, 'Relatórios', `<div class="s">${rs.filter(r => r.tipo === 'niat').length} NIAT · ${rs.filter(r => r.tipo === '5pq').length} 5 Porquês</div>`) +
+    k(rs.length, 'Relatórios', `<div class="s">${pl(rs.filter(r => r.tipo === 'niat').length, 'NIAT', 'NIATs')} · ${pl(rs.filter(r => r.tipo === '5pq').length, 'análise 5 Porquês', 'análises 5 Porquês')}</div>`) +
     k(inv, 'Em investigação', '<div class="s">relatórios ainda em rascunho</div>') +
     k(graves, 'Acidentes graves', '<div class="s">no filtro atual</div>') +
-    k(c.abertas, 'Ações abertas', `<div class="s">${c.pendente} pendentes · ${c.andamento} em andamento</div>`) +
-    k(c.atrasada, '⚠️ Ações atrasadas', '<div class="s">prazo vencido e não concluídas</div>', c.atrasada ? 'alerta-kpi' : '') +
+    k(c.abertas, 'Ações abertas', `<div class="s">${pl(c.pendente, 'pendente', 'pendentes')} · ${c.andamento} em andamento</div>`) +
+    k(c.atrasada, SST.ic('triangle-alert', 13) + ' Ações atrasadas', '<div class="s">prazo vencido e não concluídas</div>', c.atrasada ? 'alerta-kpi' : '') +
     k(c.pct === null ? '—' : c.pct + '%', 'Ações concluídas',
-      `<div class="medidor"><span style="width:${c.pct || 0}%"></span></div><div class="s">${c.concluida} de ${c.validas} ação(ões)</div>`);
+      `<div class="medidor"><span style="width:${c.pct || 0}%"></span></div><div class="s">${c.concluida} de ${pl(c.validas, 'ação', 'ações')}</div>`);
 }
 
 // ── Gráficos ──────────────────────────────────────────────────────
@@ -375,7 +380,7 @@ function tabelaTecnicos(rs) {
     ${linhas.map(l => `<tr>
       <td><b>${esc(l.nome)}</b></td><td class="num-r">${l.rs.length}</td><td class="num-r">${l.e.investigacao}</td>
       <td class="num-r">${l.e.acoes}</td><td class="num-r">${l.e.encerrado}</td>
-      <td class="num-r">${l.c.abertas}</td><td class="num-r">${l.c.atrasada ? `<b class="atr">⚠️ ${l.c.atrasada}</b>` : '0'}</td>
+      <td class="num-r">${l.c.abertas}</td><td class="num-r">${l.c.atrasada ? `<b class="atr">${SST.ic('triangle-alert', 13)} ${l.c.atrasada}</b>` : '0'}</td>
       <td>${barraProgresso(l.c)}</td><td>${l.prox}</td></tr>`).join('')}
     </tbody></table>`;
 }
@@ -396,7 +401,7 @@ function tabelaRelatorios(rs) {
       <td>${r.classificacao ? `<span class="etiqueta ${r.classificacao}">${CLASSIF[r.classificacao].curto}</span>` : '—'}</td>
       <td><span class="etapa ${r._etapa}">${ETAPAS[r._etapa]}</span></td>
       <td>${barraProgresso(c)}</td>
-      <td class="num-r">${c.atrasada ? `<b class="atr" style="color:var(--st-atrasada)">⚠️ ${c.atrasada}</b>` : '0'}</td>
+      <td class="num-r">${c.atrasada ? `<b class="atr">${SST.ic('triangle-alert', 13)} ${c.atrasada}</b>` : '0'}</td>
       <td>${proximoPrazo(r._acoes)}</td></tr>`).join('')}
     </tbody></table>`;
 }
@@ -412,7 +417,7 @@ function tabelaExecutores(acs) {
   if (!l.length) return '<div class="vazio-p">Nenhuma ação cadastrada.</div>';
   return `<table class="tabela"><thead><tr><th>Quem</th><th class="num-r">Abertas</th><th class="num-r">Atrasadas</th><th class="num-r">Concluídas</th><th>Próximo prazo</th></tr></thead><tbody>
     ${l.map(x => `<tr><td><b>${esc(x.nome)}</b></td><td class="num-r">${x.c.abertas}</td>
-      <td class="num-r">${x.c.atrasada ? `<b class="atr" style="color:var(--st-atrasada)">⚠️ ${x.c.atrasada}</b>` : '0'}</td>
+      <td class="num-r">${x.c.atrasada ? `<b class="atr">${SST.ic('triangle-alert', 13)} ${x.c.atrasada}</b>` : '0'}</td>
       <td class="num-r">${x.c.concluida}</td><td>${x.prox}</td></tr>`).join('')}</tbody></table>`;
 }
 
@@ -499,10 +504,12 @@ function desenhar() {
   try { perfil = await SST.exigirLogin(); } catch (e) { return; }
   await SST.barra(perfil, 'painel');
   const admin = perfil.papel === 'admin';
+  if (admin) $('titulo-painel').textContent = `Olá, ${SST.primeiroNome(perfil.nome)}`;
   if (!admin) {
     $('lb-tecnico').hidden = true;
     $('bl-tecnico').hidden = true;
     $('sub').textContent = 'Em que pé estão os seus relatórios e as suas ações.';
+    document.querySelectorAll('.acoes-topo a[href="niat.html"], .acoes-topo a[href="cincoporques.html"]').forEach(a => a.remove());
   }
   try { await carregar(); } catch (e) { return toast(traduzErro(e), 'erro', 6000); }
 
