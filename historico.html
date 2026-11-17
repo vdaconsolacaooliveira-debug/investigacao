@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Histórico de alterações — Sistema SST</title>
+<link rel="icon" href="img/favicon.png">
+<link rel="stylesheet" href="css/app.css">
+<style>
+  .filtros.hist { grid-template-columns: 2fr 1.2fr 1fr 1fr 1fr 1fr; }
+  @media (max-width: 980px) { .filtros.hist { grid-template-columns: 1fr 1fr; } }
+  .filtros label.data { display: flex; flex-direction: column; font-size: 10px; color: var(--cinza); gap: 2px; }
+  td.quando { white-space: nowrap; color: var(--cinza); font-size: 12px; }
+  td.quem b { display: block; font-weight: 600; }
+  .acao { font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 10px; white-space: nowrap; }
+  .acao.criou { background: #e6f4e7; color: var(--verde); }
+  .acao.alterou { background: var(--azul-claro); color: var(--azul); }
+  .acao.excluiu { background: #fde8ee; color: var(--grave); }
+  .alvo .tp { font-size: 10px; text-transform: uppercase; letter-spacing: .5px; color: var(--cinza); display: block; }
+  .alvo a { color: var(--azul); font-weight: 700; text-decoration: none; font-family: Consolas, "Courier New", monospace; }
+  .alvo a:hover { text-decoration: underline; }
+  ul.mud { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 4px; font-size: 12px; }
+  ul.mud li { line-height: 1.45; }
+  ul.mud .c { font-weight: 700; color: #374151; }
+  ul.mud .de { color: var(--grave); text-decoration: line-through; text-decoration-color: rgba(183,18,71,.4); }
+  ul.mud .para { color: var(--verde); }
+  ul.mud .seta { color: var(--cinza); margin: 0 4px; }
+  ul.mud .lista { display: block; margin: 2px 0 0 10px; }
+  ul.mud .mais { color: var(--verde); } ul.mud .menos { color: var(--grave); }
+  .ver-mais { font-size: 11px; color: var(--azul); cursor: pointer; font-weight: 600; background: none; border: none; padding: 0; }
+  table.tabela tbody tr { cursor: default; }
+  table.tabela td { vertical-align: top; }
+</style>
+</head>
+<body class="sst-app">
+<header id="sst-appbar"></header>
+
+<main class="sst-main">
+  <div class="sst-titulo">
+    <div>
+      <h1>Histórico de alterações</h1>
+      <p id="sub">Quem alterou o quê e quando. Só o Administrador vê esta tela.</p>
+    </div>
+    <div style="display:flex;gap:8px">
+      <a class="btn" id="b-limpar" href="historico.html" hidden>✕ Ver todo o histórico</a>
+      <button class="btn" id="b-csv" type="button">⬇️ Exportar (CSV)</button>
+    </div>
+  </div>
+
+  <div class="sst-card filtros hist">
+    <input id="f-busca" type="search" placeholder="🔍  Pesquisar (nº do relatório, nome, texto alterado…)">
+    <select id="f-usuario"><option value="">Todos os usuários</option></select>
+    <select id="f-tabela">
+      <option value="">Tudo</option>
+      <option value="relatorios">Relatórios</option>
+      <option value="perfis">Usuários</option>
+      <option value="ishikawa">Lista do Ishikawa</option>
+      <option value="unidades">Unidades</option>
+    </select>
+    <select id="f-acao"><option value="">Toda ação</option><option value="criou">Criou</option><option value="alterou">Alterou</option><option value="excluiu">Excluiu</option></select>
+    <label class="data">De<input id="f-de" type="date"></label>
+    <label class="data">Até<input id="f-ate" type="date"></label>
+  </div>
+
+  <div class="sst-card">
+    <div class="tabela-wrap">
+      <table class="tabela">
+        <thead><tr><th>Quando</th><th>Quem</th><th>Ação</th><th>Onde</th><th style="width:48%">O que mudou</th></tr></thead>
+        <tbody id="corpo"><tr><td colspan="5"><div class="carregando" style="min-height:160px"><div><div class="giro"></div>Carregando…</div></div></td></tr></tbody>
+      </table>
+    </div>
+    <div class="rodape-lista"><span id="contagem"></span><span>Mostra os 2.000 registros mais recentes do filtro</span></div>
+  </div>
+</main>
+
+<script src="js/vendor/supabase.js"></script>
+<script src="js/config.js"></script>
+<script src="js/app.js"></script>
+<script>
+const { sb, esc, toast, traduzErro } = SST;
+const $ = id => document.getElementById(id);
+let todos = [], numeros = {};
+
+// ── Nomes amigáveis ──────────────────────────────────────────────
+const ROTULOS = {
+  situacao: 'Situação', classificacao: 'Classificação', data_ocorrencia: 'Data da ocorrência', envolvido: 'Envolvido',
+  unidade: 'Unidade', niat_id: 'NIAT pai', responsavel: 'Responsável', numero: 'Número',
+  ishikawa: 'Diagrama de Ishikawa', acoes: 'Plano de ação', fotos: 'Fotos', cadeias: 'Análise dos 5 Porquês',
+  nome: 'Nome', email: 'E-mail', papel: 'Papel', texto: 'Texto', icone: 'Ícone', ativo: 'Ativo', ordem: 'Posição na lista',
+  chave: 'Chave', complexo: 'Complexo', sigla: 'Sigla',
+  'campos.data': 'Data', 'campos.hora': 'Hora', 'campos.unidade': 'Unidade', 'campos.setor': 'Setor',
+  'campos.classificacao': 'Classificação', 'campos.potencial': 'Potencial da ocorrência', 'campos.agravamento': 'Potencial de agravamento',
+  'campos.dias_perdidos': 'Dias perdidos', 'campos.cat': 'Nº CAT', 'campos.tipo_lesao': 'Tipo de lesão', 'campos.parte_corpo': 'Parte do corpo',
+  'campos.categoria': 'Categoria', 'campos.tipo_contato': 'Tipo de contato', 'campos.acidentes_anteriores': 'Acidentes anteriores',
+  'campos.w_quando': '5W1H — Quando?', 'campos.w_onde': '5W1H — Onde?', 'campos.w_quem': '5W1H — Quem?',
+  'campos.w_oque': '5W1H — O quê?', 'campos.w_porque': '5W1H — Por quê?', 'campos.w_como': '5W1H — Como?',
+  'campos.descricao': 'Descrição da ocorrência', 'campos.observacao': 'Observação', 'campos.ishikawa_obs': 'Observações da análise',
+  'campos.causa_imediata': 'Causa imediata', 'campos.causa_raiz': 'Causa raiz', 'campos.causas_contribuintes': 'Causas contribuintes',
+  'campos.tecnico': 'Técnico de Segurança', 'campos.gerente': 'Gerente Local', 'campos.data_emissao': 'Data de emissão',
+  'campos.data_emissao_rodape': 'Data de emissão (rodapé)', 'campos.data_ocorrencia': 'Data da ocorrência', 'campos.envolvido': 'Nome do envolvido',
+  'campos.funcao': 'Função', 'campos.fenomeno': 'Descrição da ocorrência (fenômeno)'
+};
+['1', '2'].forEach(n => Object.assign(ROTULOS, {
+  [`campos.e${n}_nome`]: `Envolvido ${n} — nome`, [`campos.e${n}_registro`]: `Envolvido ${n} — registro`,
+  [`campos.e${n}_tempo_empresa`]: `Envolvido ${n} — tempo na empresa`, [`campos.e${n}_tempo_funcao`]: `Envolvido ${n} — tempo na função`,
+  [`campos.e${n}_funcao`]: `Envolvido ${n} — função`, [`campos.e${n}_lesao`]: `Envolvido ${n} — houve lesão?`
+}));
+const VALORES = {
+  rascunho: 'Rascunho', concluido: 'Concluído', grave: 'Acidente Grave', leve: 'Acidente Leve', incidente: 'Incidente / Quase Acidente',
+  admin: 'Administrador', padrao: 'Padrão', pendente: 'Pendente', ativo: 'Ativo', bloqueado: 'Bloqueado', true: 'Sim', false: 'Não'
+};
+const TABELAS = { relatorios: 'Relatório', perfis: 'Usuário', ishikawa_grupos: 'Grupo do Ishikawa', ishikawa_itens: 'Item do Ishikawa', unidades: 'Unidade' };
+
+function valor(v, campo) {
+  if (v === null || v === undefined || v === '') return '<i style="color:#9aa5b1">(vazio)</i>';
+  if (campo === 'niat_id') return esc(numeros[v] || 'NIAT');
+  if (campo === 'data_ocorrencia') return esc(SST.dataBR(v) || v);
+  if (typeof v === 'object') return esc(JSON.stringify(v));
+  return esc(VALORES[String(v)] || v);
+}
+
+// Listas: mostra o que entrou (+) e o que saiu (−)
+function itensLista(campo, v) {
+  if (v == null) return [];
+  if (typeof v === 'string') return null;   // conteúdo grande, sem detalhe
+  if (campo === 'ishikawa') {
+    if (Array.isArray(v)) return v.map(x => (x.gn ? x.gn + ': ' : '') + x.t);
+    return Object.entries(v).flatMap(([g, ts]) => (ts || []).map(t => g.replace(/_/g, ' ') + ': ' + t));
+  }
+  if (campo === 'acoes') return v.map(a => [a.oque, a.quem && `quem: ${a.quem}`, a.quando && `quando: ${a.quando}`, a.replicar && `replicar: ${a.replicar}`].filter(Boolean).join(' · '));
+  if (campo === 'fotos') return v.map((f, i) => `Foto ${i + 1}${f.legenda ? ' — ' + f.legenda : ''}`);
+  if (campo === 'cadeias') return v.flatMap((c, ci) => c.map((l, li) => `Cadeia ${String(ci + 1).padStart(2, '0')}, linha ${li + 1}: ` +
+    [l.problema && `Problema: ${l.problema}`, ...(l.pq || []).filter(Boolean).map((p, i) => `${i + 1}º ${p}`), l.acao && `Ação: ${l.acao}`, l.resp && `Resp.: ${l.resp}`, l.prazo && `Prazo: ${l.prazo}`].filter(Boolean).join(' → ')));
+  return Array.isArray(v) ? v.map(x => typeof x === 'object' ? JSON.stringify(x) : String(x)) : null;
+}
+
+function detalhar(m) {
+  const rot = ROTULOS[m.campo] || m.campo.replace(/^campos\./, '').replace(/_/g, ' ');
+  const lista = ['ishikawa', 'acoes', 'fotos', 'cadeias'].includes(m.campo) || Array.isArray(m.de) || Array.isArray(m.para);
+  if (lista) {
+    const a = itensLista(m.campo, m.de), b = itensLista(m.campo, m.para);
+    if (a === null || b === null) return `<li><span class="c">${esc(rot)}:</span> alterado</li>`;
+    const sai = a.filter(x => !b.includes(x)), entra = b.filter(x => !a.includes(x));
+    if (!sai.length && !entra.length) return `<li><span class="c">${esc(rot)}:</span> ordem alterada</li>`;
+    return `<li><span class="c">${esc(rot)}:</span>
+      ${entra.map(x => `<span class="lista mais">+ ${esc(x)}</span>`).join('')}
+      ${sai.map(x => `<span class="lista menos">− ${esc(x)}</span>`).join('')}</li>`;
+  }
+  return `<li><span class="c">${esc(rot)}:</span> <span class="de">${valor(m.de, m.campo)}</span><span class="seta">→</span><span class="para">${valor(m.para, m.campo)}</span></li>`;
+}
+
+function onde(r) {
+  const tp = TABELAS[r.tabela] || r.tabela;
+  if (r.tabela === 'relatorios' && r.acao !== 'excluiu') {
+    const pag = (r.registro || '').startsWith('5PQ') ? 'cincoporques.html' : 'niat.html';
+    return `<span class="tp">${tp}</span><a href="${pag}?id=${esc(r.registro_id)}">${esc(r.registro)}</a>`;
+  }
+  return `<span class="tp">${tp}</span>${esc(r.registro || '—')}`;
+}
+
+function filtrar() {
+  const termos = SST_norm($('f-busca').value).split(/\s+/).filter(Boolean);
+  const u = $('f-usuario').value, t = $('f-tabela').value, a = $('f-acao').value, de = $('f-de').value, ate = $('f-ate').value;
+  return todos.filter(r =>
+    (!u || r.usuario === u) && (!t || r.tabela.startsWith(t)) && (!a || r.acao === a) &&
+    (!de || r.quando.slice(0, 10) >= de) && (!ate || r.quando.slice(0, 10) <= ate) &&
+    termos.every(x => r._texto.includes(x)));
+}
+function SST_norm(t) { return String(t || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase(); }
+
+function desenhar() {
+  const l = filtrar();
+  $('contagem').textContent = `${l.length} de ${todos.length} registro(s)`;
+  if (!l.length) { $('corpo').innerHTML = `<tr><td colspan="5"><div class="vazio"><div class="ic">🕘</div>Nenhum registro encontrado.</div></td></tr>`; return; }
+  $('corpo').innerHTML = l.map(r => {
+    const muds = (r.mudancas || []);
+    const corte = 8;
+    const itens = muds.map(detalhar);
+    const corpo = !itens.length ? (r.acao === 'excluiu' ? '<span class="sub" style="color:var(--grave)">Removido</span>' : '—')
+      : `<ul class="mud">${itens.slice(0, corte).join('')}${itens.length > corte ? `<li class="extra" hidden>${itens.slice(corte).join('')}</li><li><button class="ver-mais">+ ${itens.length - corte} alteração(ões)</button></li>` : ''}</ul>`;
+    return `<tr>
+      <td class="quando">${SST.dataHoraBR(r.quando)}</td>
+      <td class="quem"><b>${esc(r.usuario_nome || '—')}</b></td>
+      <td><span class="acao ${r.acao}">${{ criou: 'Criou', alterou: 'Alterou', excluiu: 'Excluiu' }[r.acao]}</span></td>
+      <td class="alvo">${onde(r)}</td>
+      <td>${corpo}</td></tr>`;
+  }).join('');
+  $('corpo').querySelectorAll('.ver-mais').forEach(b => b.onclick = () => {
+    b.closest('ul').querySelector('.extra').hidden = false; b.parentElement.remove();
+  });
+}
+
+function exportarCSV() {
+  const q = v => `"${String(v ?? '').replace(/"/g, '""').replace(/\r?\n/g, ' ')}"`;
+  const linhas = [];
+  filtrar().forEach(r => {
+    const base = [SST.dataHoraBR(r.quando), r.usuario_nome, { criou: 'Criou', alterou: 'Alterou', excluiu: 'Excluiu' }[r.acao], TABELAS[r.tabela] || r.tabela, r.registro];
+    if (!(r.mudancas || []).length) linhas.push([...base, '', '', '']);
+    (r.mudancas || []).forEach(m => {
+      const f = v => v == null ? '' : typeof v === 'object' ? JSON.stringify(v) : (VALORES[String(v)] || v);
+      linhas.push([...base, ROTULOS[m.campo] || m.campo, f(m.de), f(m.para)]);
+    });
+  });
+  const csv = [['Quando', 'Quem', 'Ação', 'Tipo', 'Registro', 'Campo', 'Antes', 'Depois'], ...linhas].map(l => l.map(q).join(';')).join('\r\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob(['﻿' + csv], { type: 'text/csv;charset=utf-8' }));
+  a.download = `historico-sst-${new Date().toISOString().slice(0, 10)}.csv`;
+  a.click();
+}
+
+(async function () {
+  let eu;
+  try { eu = await SST.exigirLogin({ admin: true }); } catch (e) { return; }
+  await SST.barra(eu, 'historico');
+
+  const registro = SST.param('registro');
+  let q = sb.from('auditoria').select('*').order('quando', { ascending: false }).limit(2000);
+  if (registro) q = q.eq('registro_id', registro);
+  const [{ data, error }, { data: rels }] = await Promise.all([q, sb.from('relatorios').select('id,numero')]);
+  if (error) return toast(traduzErro(error), 'erro');
+  (rels || []).forEach(r => numeros[r.id] = r.numero);
+  todos = data.map(r => ({ ...r, _texto: SST_norm([r.registro, r.usuario_nome, JSON.stringify(r.mudancas)].join(' ')) }));
+
+  if (registro) {
+    $('sub').textContent = `Histórico do ${todos[0] ? todos[0].registro : 'registro'}.`;
+    $('b-limpar').hidden = false;
+  }
+  const us = {}; todos.forEach(r => { if (r.usuario) us[r.usuario] = r.usuario_nome || '—'; });
+  $('f-usuario').innerHTML += Object.entries(us).sort((a, b) => a[1].localeCompare(b[1])).map(([id, n]) => `<option value="${id}">${esc(n)}</option>`).join('');
+  ['f-busca', 'f-usuario', 'f-tabela', 'f-acao', 'f-de', 'f-ate'].forEach(id => $(id).addEventListener(id === 'f-busca' ? 'input' : 'change', desenhar));
+  $('b-csv').onclick = exportarCSV;
+  desenhar();
+})();
+</script>
+</body>
+</html>

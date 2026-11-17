@@ -264,7 +264,13 @@ function marcarLimpo(txt) {
   const e = document.getElementById('estado');
   e.textContent = txt || ''; e.className = 'estado';
 }
+function mostrarHistorico() {
+  const b = document.getElementById('b-hist');
+  b.hidden = !(perfil && perfil.papel === 'admin' && registro.id);
+  b.onclick = () => window.open(`historico.html?registro=${registro.id}`, '_blank');
+}
 function mostrarNumero() {
+  mostrarHistorico();
   if (!registro.numero) return;
   const n = document.getElementById('num-doc');
   n.textContent = registro.numero; n.className = 'num-doc';

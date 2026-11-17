@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>NIAT — Notificação Interna de Acidente do Trabalho</title>
-<link rel="icon" href="img/logo-db.png">
+<link rel="icon" href="img/favicon.png">
 <link rel="stylesheet" href="css/app.css">
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -285,7 +285,7 @@
   /* ── SISTEMA: barra de ações ── */
   body { padding: 0; }
   #conteudo { padding: 0 24px 40px; }
-  .toolbar { max-width: 1040px !important;
+  .toolbar { max-width: 1120px !important;
   }
   .toolbar { position: sticky; top: 56px; z-index: 40; background: #e8e8e8; padding: 8px 0; margin-bottom: 8px; }
   .toolbar button, .toolbar select { padding: 7px 10px !important; }
@@ -301,7 +301,7 @@
   .btn-x { background: none; border: none; color: #c0392b; cursor: pointer; font-weight: bold; font-size: 13px; padding: 6px; width: 100%; }
   .btn-x:hover { background: #fff0ee; }
   .ishi-option.removido { color: #8a6510; font-style: italic; }
-  .toolbar #responsavel { max-width: 190px; }
+  .toolbar #responsavel { max-width: 170px; }
   .foto-nova img { outline: 2px dashed #E07B00; outline-offset: 2px; }
   @media print {
     .toolbar, .col-x, .btn-x, .btn-foto, .foto-x, #ishi-editar { display: none !important; }
@@ -327,7 +327,8 @@
   </select>
   <select id="responsavel" hidden title="Responsável: quem vai ver e editar este relatório"></select>
   <button class="primary" id="b-salvar" type="button">💾 Salvar</button>
-  <button type="button" onclick="window.print()">🖨️ Imprimir / PDF</button>
+  <button type="button" onclick="window.print()" title="Imprimir ou salvar como PDF">🖨️ Imprimir</button>
+  <button type="button" id="b-hist" hidden title="Histórico de alterações deste relatório">🕘</button>
   <button type="button" id="b-5pq" hidden>➕ Gerar 5 Porquês</button>
   <span class="estado" id="estado"></span>
 </div>

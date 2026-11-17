@@ -124,7 +124,7 @@
       ['5pq', 'cincoporques.html', '❓', 'Novo 5 Porquês'],
       ['lista', 'relatorios.html', '📂', 'Relatórios']
     ];
-    if (admin) links.push(['usuarios', 'usuarios.html', '👥', 'Usuários'], ['config', 'configuracoes.html', '⚙️', 'Configurações']);
+    if (admin) links.push(['usuarios', 'usuarios.html', '👥', 'Usuários'], ['config', 'configuracoes.html', '⚙️', 'Configurações'], ['historico', 'historico.html', '🕘', 'Histórico']);
     el.innerHTML = `
       <a class="marca" href="index.html">
         <img src="img/logo-db.png" alt="DB Agronegócios">
