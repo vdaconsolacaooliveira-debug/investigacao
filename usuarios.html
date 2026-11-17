@@ -20,7 +20,7 @@
 
   <div class="alerta info">
     <b>Administrador</b> vê e edita os relatórios de todos e gerencia usuários.
-    <b>Usuário padrão</b> vê e edita só os relatórios que ele mesmo criou.
+    <b>Usuário padrão</b> vê e edita só os relatórios pelos quais é responsável.
   </div>
 
   <div class="secao-rotulo" id="rot-pend" hidden>Aguardando aprovação</div>
@@ -29,6 +29,23 @@
   <div class="secao-rotulo">Todos os usuários</div>
   <div class="sst-card tabela-wrap" id="todos"></div>
 </main>
+
+<dialog id="dlg-excluir" style="border:none;border-radius:10px;padding:0;max-width:460px;width:92%;box-shadow:var(--sombra-forte)">
+  <form method="dialog" style="padding:22px 24px">
+    <h2 style="margin:0 0 6px;color:var(--grave);font-size:18px">Excluir usuário</h2>
+    <p id="ex-txt" style="margin:0 0 14px;color:#374151;line-height:1.5;font-size:14px"></p>
+    <div class="campo" id="ex-resp-campo" hidden>
+      <label for="ex-resp">Quem vai assumir os relatórios dele?</label>
+      <select id="ex-resp"></select>
+    </div>
+    <div class="alerta info" style="font-size:12px">O acesso é apagado de vez. Os relatórios continuam no sistema e o nome dele fica no histórico.</div>
+    <div class="campo"><label for="ex-conf">Para confirmar, digite <b>EXCLUIR</b></label><input id="ex-conf" autocomplete="off"></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button class="btn" value="cancelar" type="submit">Cancelar</button>
+      <button class="btn" id="ex-ok" type="button" style="background:var(--grave);border-color:var(--grave);color:#fff" disabled>🗑️ Excluir</button>
+    </div>
+  </form>
+</dialog>
 
 <script src="js/vendor/supabase.js"></script>
 <script src="js/config.js"></script>
@@ -41,13 +58,14 @@ const $ = id => document.getElementById(id);
 function linha(u, pend) {
   const proprio = u.id === eu.id;
   const acoes = [];
-  if (u.situacao === 'pendente') acoes.push(`<button class="btn pequeno verde" data-a="aprovar">✔ Aprovar</button>`, `<button class="btn pequeno perigo" data-a="bloquear">Recusar</button>`);
+  if (u.situacao === 'pendente') acoes.push(`<button class="btn pequeno verde" data-a="aprovar">✔ Aprovar</button>`, `<button class="btn pequeno perigo" data-a="bloquear">Recusar</button>`, `<button class="btn pequeno perigo" data-a="excluir" title="Excluir cadastro">🗑️</button>`);
   else if (!proprio) {
     if (u.situacao === 'ativo') acoes.push(`<button class="btn pequeno perigo" data-a="bloquear">🔒 Bloquear</button>`);
     if (u.situacao === 'bloqueado') acoes.push(`<button class="btn pequeno" data-a="aprovar">🔓 Reativar</button>`);
     acoes.push(u.papel === 'admin'
       ? `<button class="btn pequeno" data-a="padrao">Tornar padrão</button>`
       : `<button class="btn pequeno" data-a="admin">Tornar administrador</button>`);
+    acoes.push(`<button class="btn pequeno perigo" data-a="excluir" title="Excluir usuário">🗑️ Excluir</button>`);
   }
   return `<tr data-id="${u.id}" style="cursor:default">
     <td><b>${esc(u.nome || '—')}</b>${proprio ? ' <span class="sub" style="display:inline">(você)</span>' : ''}<span class="sub">${esc(u.email)}</span></td>
@@ -75,6 +93,7 @@ function desenhar() {
 
 async function agir(id, acao) {
   const u = lista.find(x => x.id === id);
+  if (acao === 'excluir') return abrirExclusao(u);
   const mudanca = { aprovar: { situacao: 'ativo' }, bloquear: { situacao: 'bloqueado' },
                     admin: { papel: 'admin' }, padrao: { papel: 'padrao' } }[acao];
   const textos = {
@@ -89,6 +108,32 @@ async function agir(id, acao) {
   toast('Usuário atualizado.', 'ok');
   desenhar();
   SST.barra(eu, 'usuarios');
+}
+
+function abrirExclusao(u) {
+  const dlg = $('dlg-excluir');
+  const qtd = u._qtd || 0;
+  $('ex-txt').innerHTML = `Você vai excluir <b>${esc(u.nome || u.email)}</b> (${esc(u.email)}).` +
+    (qtd ? ` Ele é responsável por <b>${qtd} relatório(s)</b>.` : ' Ele não é responsável por nenhum relatório.');
+  $('ex-resp-campo').hidden = !qtd;
+  $('ex-resp').innerHTML = lista.filter(x => x.id !== u.id && x.situacao === 'ativo')
+    .map(x => `<option value="${x.id}">${esc(x.nome || x.email)}${x.id === eu.id ? ' (eu)' : ''}</option>`).join('');
+  $('ex-resp').value = eu.id;
+  $('ex-conf').value = ''; $('ex-ok').disabled = true;
+  $('ex-conf').oninput = () => $('ex-ok').disabled = $('ex-conf').value.trim().toUpperCase() !== 'EXCLUIR';
+  $('ex-ok').onclick = async () => {
+    $('ex-ok').disabled = true; $('ex-ok').textContent = 'Excluindo…';
+    const { error } = await sb.rpc('excluir_usuario', { alvo: u.id, novo_responsavel: qtd ? $('ex-resp').value : null });
+    $('ex-ok').textContent = '🗑️ Excluir';
+    if (error) { $('ex-ok').disabled = false; return toast(traduzErro(error), 'erro', 6000); }
+    dlg.close();
+    if (qtd) { const novo = lista.find(x => x.id === $('ex-resp').value); if (novo) novo._qtd += qtd; }
+    lista = lista.filter(x => x.id !== u.id);
+    desenhar(); SST.barra(eu, 'usuarios');
+    toast(`${u.nome || u.email} foi excluído.` + (qtd ? ` Relatórios passados para ${$('ex-resp').selectedOptions[0].text}.` : ''), 'ok', 5000);
+  };
+  dlg.showModal();
+  $('ex-conf').focus();
 }
 
 (async function () {
