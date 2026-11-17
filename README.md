@@ -13,6 +13,7 @@ Registro de investigações de acidentes (NIAT, FOR 005-001) e análises dos 5 P
 | `cincoporques.html` | Formulário 5 Porquês (FOR 005-002), ligado a uma NIAT |
 | `relatorios.html` | Lista com pesquisa, filtros e exportação CSV |
 | `painel.html` | Painel de acompanhamento: indicadores, gráficos, situação por técnico, por relatório e por executor, lista de ações com status, relatório em PDF |
+| `relatorio-geral.html` | Relatório geral das investigações: cada investigação com suas ações — de onde veio, quem gerou, quem executa, prazo e situação (tela, PDF e CSV) |
 | `usuarios.html` | Aprovação e gestão de usuários (só Administrador) |
 | `historico.html` | Histórico de alterações: quem alterou o quê e quando (só Administrador) |
 | `configuracoes.html` | Edição da lista do Diagrama de Ishikawa: grupos e itens (só Administrador) |

@@ -74,6 +74,7 @@ function adicionarLinha(cadeiaId, cadeiaNum, primeira, valores) {
   linha.className = 'grade-linha';
   linha.dataset.id = v.id || SST.novoId();
   if (v.concluida_em) linha.dataset.concluida = v.concluida_em;
+  if (v.criado_por_nome) { linha.dataset.criadoPor = v.criado_por_nome; linha.dataset.criadoEm = v.criado_em || ''; }
 
   if (n === 1) {
     const c = document.createElement('div');
@@ -179,6 +180,8 @@ function lerCadeias() {
         resp: t(l.querySelector('[data-c=resp]')), prazo: t(l.querySelector('[data-c=prazo]')),
         status: l.querySelector('[data-c=status]').value };
       if (l.dataset.concluida) o.concluida_em = l.dataset.concluida;
+      if (l.dataset.criadoPor) { o.criado_por_nome = l.dataset.criadoPor; o.criado_em = l.dataset.criadoEm; }
+      else if (o.acao && perfil) { o.criado_por_nome = perfil.nome; o.criado_em = SST.hojeISO(); l.dataset.criadoPor = o.criado_por_nome; l.dataset.criadoEm = o.criado_em; }
       SST.ajustarConclusao(o);
       const p = l.querySelector('[data-c=problema]');
       if (p) o.problema = t(p);

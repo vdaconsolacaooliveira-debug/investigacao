@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Relatório geral das investigações — Sistema SST</title>
+<link rel="icon" href="img/favicon.png">
+<link rel="stylesheet" href="css/app.css">
+<style>
+  :root { --st-concluida: #0ca30c; --st-andamento: #2a78d6; --st-pendente: #eda100; --st-atrasada: #d03b3b; --st-cancelada: #9aa5b1; }
+  .sst-main.rg { max-width: 1320px; }
+  .filtros.rg-f { grid-template-columns: repeat(6, 1fr) auto; align-items: end; }
+  .filtros.rg-f label { display: flex; flex-direction: column; gap: 3px; font-size: 11px; color: var(--cinza); font-weight: 600; }
+  @media (max-width: 1000px) { .filtros.rg-f { grid-template-columns: 1fr 1fr; } }
+
+  .resumo { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; }
+  .resumo .item { background: #fff; border: 1px solid var(--borda); border-radius: 8px; padding: 10px 14px; min-width: 130px; }
+  .resumo .item b { display: block; font-size: 22px; color: var(--texto); }
+  .resumo .item span { font-size: 12px; color: var(--cinza); }
+  .resumo .item.atr b { color: var(--st-atrasada); }
+
+  .modo { display: inline-flex; border: 1px solid var(--borda); border-radius: 8px; overflow: hidden; background: #fff; }
+  .modo button { border: none; background: none; padding: 8px 14px; font: inherit; font-size: 13px; cursor: pointer; color: var(--cinza); }
+  .modo button.on { background: var(--azul); color: #fff; font-weight: 600; }
+
+  .inv { margin-bottom: 14px; overflow: hidden; }
+  .inv.filho { margin-left: 28px; border-left: 4px solid var(--dourado); }
+  .inv-cab { display: grid; grid-template-columns: auto 1fr auto; gap: 14px; align-items: start; padding: 14px 18px 10px; border-bottom: 1px solid #eef0f3; }
+  .inv-cab .num { font-family: Consolas, "Courier New", monospace; font-weight: 700; font-size: 16px; color: var(--azul); text-decoration: none; white-space: nowrap; }
+  .inv-cab .num:hover { text-decoration: underline; }
+  .inv-cab .meta { display: flex; flex-wrap: wrap; gap: 4px 16px; font-size: 12px; color: #374151; }
+  .inv-cab .meta span b { color: var(--cinza); font-weight: 600; margin-right: 3px; }
+  .inv-cab .tags { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+  .inv-desc { padding: 8px 18px; font-size: 12.5px; color: #374151; display: grid; grid-template-columns: 1fr 1fr; gap: 6px 22px; background: #fafbfc; border-bottom: 1px solid #eef0f3; }
+  .inv-desc b { display: block; font-size: 10px; text-transform: uppercase; letter-spacing: .5px; color: var(--cinza); margin-bottom: 1px; }
+  @media (max-width: 800px) { .inv-desc, .inv-cab { grid-template-columns: 1fr; } .inv-cab .tags { justify-content: flex-start; } }
+
+  table.tabela.acoes-t td, table.tabela.acoes-t th { padding: 8px 10px; font-size: 12.5px; vertical-align: top; }
+  table.tabela.acoes-t tbody tr { cursor: default; }
+  .origem { font-size: 11px; color: var(--cinza); display: block; margin-top: 2px; }
+  .origem b { color: #374151; font-weight: 600; }
+  .fonte { display: block; font-size: 10px; color: #9aa5b1; font-style: italic; }
+  .st { display: inline-flex; align-items: center; gap: 5px; font-size: 11.5px; font-weight: 700; white-space: nowrap; }
+  .st i { width: 9px; height: 9px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
+  .prazo-atr { color: var(--st-atrasada); font-weight: 700; }
+  .dias { display: block; font-size: 10px; color: var(--st-atrasada); }
+  .sem-acoes { padding: 12px 18px; font-size: 12.5px; color: #8a6510; background: #fffaf0; }
+  .etapa { font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 10px; white-space: nowrap; }
+  .etapa.investigacao { background: #efeafd; color: #4a3aa7; }
+  .etapa.acoes { background: var(--azul-claro); color: var(--azul); }
+  .etapa.encerrado { background: #e6f4e7; color: var(--verde); }
+  .etapa.sem_acoes { background: #fff6dc; color: #8a6510; }
+  a.rel { color: var(--azul); font-weight: 700; text-decoration: none; font-family: Consolas, "Courier New", monospace; font-size: 12px; white-space: nowrap; }
+
+  .so-impressao { display: none !important; }
+  .cab-impressao { align-items: center; gap: 16px; border-bottom: 3px solid var(--azul); padding-bottom: 10px; margin-bottom: 14px; }
+  .cab-impressao img { height: 46px; }
+  .cab-impressao h1 { margin: 0; font-size: 20px; color: var(--azul); }
+  .cab-impressao p { margin: 2px 0 0; font-size: 12px; color: var(--cinza); }
+  @media print {
+    @page { size: A4 landscape; margin: 11mm; }
+    body.sst-app { background: #fff; }
+    .sst-main.rg { padding: 0; max-width: none; }
+    .so-impressao { display: flex !important; }
+    .sem-impressao, .filtros, .modo { display: none !important; }
+    .sst-card { box-shadow: none; border-color: #cfd5dc; }
+    .inv { break-inside: avoid; }
+    .inv.grande { break-inside: auto; }
+    table.tabela th, .inv-desc, .etapa, .etiqueta, .st i, .sem-acoes { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .tabela-wrap { overflow: visible; }
+  }
+</style>
+</head>
+<body class="sst-app">
+<header id="sst-appbar"></header>
+
+<main class="sst-main rg">
+  <div class="so-impressao cab-impressao">
+    <img src="img/logo-db.png" alt="DB Agronegócios">
+    <div><h1>Relatório geral das investigações</h1><p id="imp-info"></p></div>
+  </div>
+
+  <div class="sst-titulo sem-impressao">
+    <div>
+      <h1>Relatório geral das investigações</h1>
+      <p>Todas as investigações e suas ações: de onde cada ação veio, quem gerou e quem precisa executar.</p>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+      <div class="modo" role="group" aria-label="Forma de exibir">
+        <button type="button" data-modo="grupo" class="on">Por investigação</button>
+        <button type="button" data-modo="tabela">Tabela única</button>
+      </div>
+      <button class="btn" id="b-csv" type="button">⬇️ Planilha (CSV)</button>
+      <button class="btn primario" id="b-imprimir" type="button">🖨️ Imprimir / PDF</button>
+    </div>
+  </div>
+
+  <div class="sst-card filtros rg-f">
+    <label id="lb-tecnico">Técnico responsável<select id="f-tecnico"><option value="">Todos</option></select></label>
+    <label>Unidade<select id="f-unidade"><option value="">Todas</option></select></label>
+    <label>Ano da ocorrência<select id="f-ano"><option value="">Todos</option></select></label>
+    <label>Classificação<select id="f-classif"><option value="">Todas</option><option value="grave">Grave</option><option value="leve">Leve</option><option value="incidente">Incidente / Quase acidente</option></select></label>
+    <label>Situação da ação<select id="f-st">
+      <option value="">Todas</option><option value="abertas">Abertas (pendente, em andamento, atrasada)</option>
+      <option value="atrasada">Atrasadas</option><option value="pendente">Pendentes</option><option value="andamento">Em andamento</option>
+      <option value="concluida">Concluídas</option><option value="cancelada">Canceladas</option></select></label>
+    <label>Pesquisar<input id="f-busca" type="search" placeholder="ação, pessoa, nº…"></label>
+    <button class="btn pequeno" id="b-limpar" type="button" style="height:36px">Limpar</button>
+  </div>
+
+  <div class="resumo" id="resumo"></div>
+  <div id="saida"><div class="carregando" style="min-height:200px"><div><div class="giro"></div>Carregando…</div></div></div>
+</main>
+
+<script src="js/vendor/supabase.js"></script>
+<script src="js/config.js"></script>
+<script src="js/app.js"></script>
+<script>
+const { sb, esc, toast, traduzErro, CLASSIF, STATUS_ACAO } = SST;
+const $ = id => document.getElementById(id);
+const ETAPAS = { investigacao: 'Em investigação', acoes: 'Ações em andamento', sem_acoes: 'Concluído sem plano de ação', encerrado: 'Encerrado' };
+const COR = { concluida: '#0ca30c', andamento: '#2a78d6', pendente: '#eda100', atrasada: '#d03b3b', cancelada: '#9aa5b1' };
+const norm = t => String(t || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
+let perfil, relatorios = [], modo = 'grupo';
+
+// Quem gerou a ação: gravado na ação → histórico → autor do relatório
+function geradoresPeloHistorico(log) {
+  const m = {};   // rid -> { idAcao: {nome, quando} }
+  log.slice().reverse().forEach(e => (e.mudancas || []).forEach(x => {
+    if (x.campo !== 'acoes' && x.campo !== 'cadeias') return;
+    const antes = new Set(), depois = [];
+    const coletar = (v, alvo) => {
+      if (!Array.isArray(v)) return;
+      if (x.campo === 'acoes') v.forEach(a => a && a.id && a.oque && alvo(a.id));
+      else v.forEach(c => (c || []).forEach(l => l && l.id && l.acao && alvo(l.id)));
+    };
+    coletar(x.de, id => antes.add(id));
+    coletar(x.para, id => depois.push(id));
+    const g = (m[e.registro_id] = m[e.registro_id] || {});
+    depois.forEach(id => { if (!antes.has(id) && !g[id]) g[id] = { nome: e.usuario_nome, quando: e.quando }; });
+  }));
+  return m;
+}
+
+function montarAcoes(r, hist) {
+  const d = r.dados || {}, c = d.campos || {};
+  const out = [];
+  const gerador = (a, id) => {
+    if (a.criado_por_nome) return { nome: a.criado_por_nome, quando: a.criado_em, fonte: '' };
+    const h = hist[r.id] && hist[r.id][id];
+    if (h) return { nome: h.nome, quando: h.quando, fonte: 'pelo histórico' };
+    return { nome: r.autor || '—', quando: null, fonte: 'autor do relatório' };
+  };
+  if (r.tipo === 'niat') {
+    const causa = c.causa_raiz || c.causa_imediata || '';
+    (d.acoes || []).forEach((a, i) => {
+      if (!(a.oque || '').trim()) return;
+      out.push({ n: out.length + 1, oque: a.oque, origem: 'Plano de ação', causa, causaRot: c.causa_raiz ? 'Causa raiz' : 'Causa imediata',
+        quem: a.quem || '', prazo: a.quando || '', status: a.status || 'pendente', concluida_em: a.concluida_em, ger: gerador(a, a.id) });
+    });
+  } else {
+    const problema = (d.cadeias && d.cadeias[0] && d.cadeias[0][0] && d.cadeias[0][0].problema) || '';
+    (d.cadeias || []).forEach((cad, ci) => cad.forEach((l, li) => {
+      if (!(l.acao || '').trim()) return;
+      const pqs = (l.pq || []).filter(x => (x || '').trim());
+      out.push({ n: out.length + 1, oque: l.acao, origem: `Cadeia ${String(ci + 1).padStart(2, '0')}${cad.length > 1 ? `, linha ${li + 1}` : ''}`,
+        causa: pqs.length ? pqs[pqs.length - 1] : problema, causaRot: pqs.length ? `${pqs.length}º porquê` : 'Problema',
+        quem: l.resp || '', prazo: l.prazo || '', status: l.status || 'pendente', concluida_em: l.concluida_em, ger: gerador(l, l.id) });
+    }));
+  }
+  out.forEach(a => { a.sit = SST.situacaoAcao(a); a.prazoISO = SST.dataISO(a.prazo); });
+  return out;
+}
+function etapa(r) {
+  if (r.situacao !== 'concluido') return 'investigacao';
+  const v = r._acoes.filter(a => a.sit !== 'cancelada');
+  if (!v.length) return 'sem_acoes';
+  return v.every(a => a.sit === 'concluida') ? 'encerrado' : 'acoes';
+}
+
+async function carregar() {
+  const admin = perfil.papel === 'admin';
+  const [rr, ll, aa] = await Promise.all([
+    sb.from('relatorios').select('id,tipo,numero,unidade,responsavel,classificacao,situacao,data_ocorrencia,niat_id,ano,dados'),
+    sb.from('lista_relatorios').select('id,unidade_nome,responsavel_nome,autor,niat_numero'),
+    admin ? sb.from('auditoria').select('registro_id,usuario_nome,quando,mudancas').eq('tabela', 'relatorios').eq('acao', 'alterou').order('quando', { ascending: false }).limit(5000)
+          : Promise.resolve({ data: [] })
+  ]);
+  if (rr.error || ll.error) throw (rr.error || ll.error);
+  const extra = Object.fromEntries(ll.data.map(l => [l.id, l]));
+  const hist = geradoresPeloHistorico(aa.data || []);
+  relatorios = rr.data.map(r => ({ ...r, ...(extra[r.id] || {}) }));
+  relatorios.forEach(r => { r._acoes = montarAcoes(r, hist); r._etapa = etapa(r); });
+  const filhos = {}; relatorios.forEach(r => { if (r.niat_id) filhos[r.niat_id] = r.numero; });
+  relatorios.forEach(r => r._filho = filhos[r.id] || null);
+}
+
+function filtrar() {
+  const f = { t: $('f-tecnico').value, u: $('f-unidade').value, a: $('f-ano').value, c: $('f-classif').value, s: $('f-st').value };
+  const termos = norm($('f-busca').value).split(/\s+/).filter(Boolean);
+  const passaStatus = a => !f.s || (f.s === 'abertas' ? ['pendente', 'andamento', 'atrasada'].includes(a.sit) : a.sit === f.s);
+  const passaTexto = a => termos.every(t => norm([a.oque, a.quem, a.ger.nome, a.causa, a.origem].join(' ')).includes(t));
+  const out = [];
+  relatorios.forEach(r => {
+    if ((f.t && r.responsavel !== f.t) || (f.u && r.unidade !== f.u) || (f.a && String(r.ano) !== f.a) || (f.c && r.classificacao !== f.c)) return;
+    if (!f.s && !termos.length) { out.push({ r, acs: r._acoes }); return; }
+    const textoRel = norm([r.numero, r.niat_numero, r._filho, r.unidade_nome, r.responsavel_nome, r.autor].join(' '));
+    const relCasa = termos.length > 0 && termos.every(t => textoRel.includes(t));
+    const acs = r._acoes.filter(a => passaStatus(a) && (relCasa || passaTexto(a)));
+    if (acs.length || (relCasa && !f.s)) out.push({ r, acs });
+  });
+  // NIAT seguida do seu 5 Porquês filho; mais recentes primeiro
+  const porId = Object.fromEntries(out.map(x => [x.r.id, x]));
+  const ordenados = out.filter(x => !(x.r.niat_id && porId[x.r.niat_id]))
+    .sort((a, b) => String(b.r.data_ocorrencia || '').localeCompare(String(a.r.data_ocorrencia || '')) || b.r.numero.localeCompare(a.r.numero));
+  const final = [];
+  ordenados.forEach(x => { final.push(x); out.filter(y => y.r.niat_id === x.r.id).forEach(y => final.push(y)); });
+  return final;
+}
+
+function situacao(a) {
+  const hoje = SST.hojeISO();
+  const dias = a.sit === 'atrasada' && a.prazoISO ? Math.round((new Date(hoje) - new Date(a.prazoISO)) / 864e5) : 0;
+  return { html: `<span class="st"><i style="background:${COR[a.sit]}"></i>${STATUS_ACAO[a.sit].rotulo}</span>${a.concluida_em ? `<span class="origem">em ${SST.dataBR(a.concluida_em)}</span>` : ''}`,
+           prazo: `<span class="${a.sit === 'atrasada' ? 'prazo-atr' : ''}">${a.prazoISO ? SST.dataBR(a.prazoISO) : esc(a.prazo || '—')}</span>${dias ? `<span class="dias">${dias} dia(s) de atraso</span>` : ''}` };
+}
+function gerada(a) {
+  return `${esc(a.ger.nome)}${a.ger.quando ? `<span class="origem">${SST.dataBR(String(a.ger.quando).slice(0, 10))}</span>` : ''}${a.ger.fonte ? `<span class="fonte">(${a.ger.fonte})</span>` : ''}`;
+}
+function linkRel(r) { return `${r.tipo === 'niat' ? 'niat.html' : 'cincoporques.html'}?id=${r.id}`; }
+
+function blocoInvestigacao({ r, acs }) {
+  const c = (r.dados && r.dados.campos) || {};
+  const oque = r.tipo === 'niat' ? (c.w_oque || c.descricao || '') : (c.fenomeno || '');
+  const causa = r.tipo === 'niat' ? (c.causa_raiz || '') : ((r.dados.cadeias && r.dados.cadeias[0] && r.dados.cadeias[0][0] && r.dados.cadeias[0][0].problema) || '');
+  const corte = t => t.length > 280 ? t.slice(0, 280) + '…' : t;
+  return `<section class="sst-card inv ${r.niat_id ? 'filho' : ''} ${acs.length > 6 ? 'grande' : ''}">
+    <div class="inv-cab">
+      <a class="num" href="${linkRel(r)}">${esc(r.numero)}</a>
+      <div class="meta">
+        <span><b>Tipo</b>${r.tipo === 'niat' ? 'Investigação (NIAT)' : '5 Porquês'}</span>
+        <span><b>Unidade</b>${esc(r.unidade_nome || r.unidade)}</span>
+        <span><b>Ocorrência</b>${SST.dataBR(r.data_ocorrencia) || '—'}</span>
+        <span><b>Técnico responsável</b>${esc(r.responsavel_nome || '—')}</span>
+        <span><b>Criado por</b>${esc(r.autor || '—')}</span>
+        ${r.niat_numero ? `<span><b>Relatório pai</b>${esc(r.niat_numero)}</span>` : ''}
+        ${r._filho ? `<span><b>Gerou o 5 Porquês</b>${esc(r._filho)}</span>` : ''}
+      </div>
+      <div class="tags">
+        ${r.classificacao ? `<span class="etiqueta ${r.classificacao}">${CLASSIF[r.classificacao].curto}</span>` : ''}
+        <span class="etapa ${r._etapa}">${ETAPAS[r._etapa]}</span>
+      </div>
+    </div>
+    ${oque || causa ? `<div class="inv-desc">
+      <div><b>${r.tipo === 'niat' ? 'O que aconteceu' : 'Ocorrência (fenômeno)'}</b>${esc(corte(oque)) || '—'}</div>
+      <div><b>${r.tipo === 'niat' ? 'Causa raiz' : 'Problema analisado'}</b>${esc(corte(causa)) || '—'}</div></div>` : ''}
+    ${acs.length ? `<div class="tabela-wrap"><table class="tabela acoes-t"><thead><tr>
+        <th style="width:3%">#</th><th style="width:28%">Ação</th><th style="width:22%">De onde veio</th><th>Gerada por</th>
+        <th>Quem executa</th><th>Prazo</th><th>Situação</th></tr></thead><tbody>
+      ${acs.map(a => { const s = situacao(a); return `<tr>
+        <td>${a.n}</td><td>${esc(a.oque)}</td>
+        <td><b style="font-weight:600">${esc(a.origem)}</b>${a.causa && r.tipo === '5pq' ? `<span class="origem"><b>${esc(a.causaRot)}:</b> ${esc(corte(a.causa))}</span>` : ''}</td>
+        <td>${gerada(a)}</td><td>${esc(a.quem) || '<span class="origem">não informado</span>'}</td>
+        <td>${s.prazo}</td><td>${s.html}</td></tr>`; }).join('')}
+      </tbody></table></div>`
+      : `<div class="sem-acoes">${r._acoes.length ? 'Nenhuma ação desta investigação no filtro atual.' : 'Nenhuma ação cadastrada nesta investigação.'}</div>`}
+  </section>`;
+}
+
+function tabelaUnica(lista) {
+  const linhas = lista.flatMap(({ r, acs }) => acs.map(a => ({ r, a })));
+  if (!linhas.length) return '<div class="sst-card vazio">Nenhuma ação no filtro atual.</div>';
+  const admin = perfil.papel === 'admin';
+  return `<div class="sst-card tabela-wrap"><table class="tabela acoes-t"><thead><tr>
+      <th>Investigação</th><th style="width:24%">Ação</th><th style="width:20%">De onde veio</th><th>Gerada por</th><th>Quem executa</th>
+      ${admin ? '<th>Técnico resp.</th>' : ''}<th>Prazo</th><th>Situação</th></tr></thead><tbody>
+    ${linhas.map(({ r, a }) => { const s = situacao(a); return `<tr>
+      <td><a class="rel" href="${linkRel(r)}">${esc(r.numero)}</a><span class="origem">${esc(r.unidade_nome || '')}</span></td>
+      <td>${esc(a.oque)}</td>
+      <td><b style="font-weight:600">${esc(a.origem)}</b>${a.causa ? `<span class="origem"><b>${esc(a.causaRot)}:</b> ${esc(a.causa.slice(0, 160))}</span>` : ''}</td>
+      <td>${gerada(a)}</td><td>${esc(a.quem) || '<span class="origem">não informado</span>'}</td>
+      ${admin ? `<td>${esc(r.responsavel_nome || '—')}</td>` : ''}<td>${s.prazo}</td><td>${s.html}</td></tr>`; }).join('')}
+    </tbody></table></div>`;
+}
+
+function desenhar() {
+  const lista = filtrar();
+  const acs = lista.flatMap(x => x.acs);
+  const cnt = k => acs.filter(a => a.sit === k).length;
+  $('resumo').innerHTML = [
+    [lista.filter(x => x.r.tipo === 'niat').length, 'NIATs'], [lista.filter(x => x.r.tipo === '5pq').length, '5 Porquês'],
+    [acs.length, 'Ações listadas'], [cnt('pendente') + cnt('andamento') + cnt('atrasada'), 'Abertas'],
+    [cnt('atrasada'), '⚠️ Atrasadas', 'atr'], [cnt('concluida'), 'Concluídas']
+  ].map(([v, r, cls]) => `<div class="item ${cls || ''}"><b>${v}</b><span>${r}</span></div>`).join('');
+  $('saida').innerHTML = !lista.length ? '<div class="sst-card vazio"><div class="ic">🔎</div>Nenhuma investigação no filtro atual.</div>'
+    : modo === 'grupo' ? lista.map(blocoInvestigacao).join('') : tabelaUnica(lista);
+  const partes = [];
+  [['f-tecnico', 'Técnico'], ['f-unidade', 'Unidade'], ['f-ano', 'Ano'], ['f-classif', 'Classificação'], ['f-st', 'Situação da ação']].forEach(([id, rot]) => {
+    if ($(id).value) partes.push(`${rot}: ${$(id).selectedOptions[0].text}`); });
+  if ($('f-busca').value) partes.push(`Pesquisa: "${$('f-busca').value}"`);
+  $('imp-info').textContent = `Gerado em ${SST.dataHoraBR(new Date().toISOString())} por ${perfil.nome} · ${partes.join(' · ') || 'Todas as investigações'}`;
+}
+
+function exportarCSV() {
+  const q = v => `"${String(v ?? '').replace(/"/g, '""').replace(/\r?\n/g, ' ')}"`;
+  const cab = ['Investigação', 'Tipo', 'Relatório pai', 'Unidade', 'Data da ocorrência', 'Classificação', 'Etapa', 'Técnico responsável', 'Relatório criado por',
+    'Nº da ação', 'Ação', 'De onde veio', 'Causa ligada', 'Gerada por', 'Gerada em', 'Quem executa', 'Prazo', 'Situação', 'Concluída em'];
+  const linhas = [];
+  filtrar().forEach(({ r, acs }) => {
+    const base = [r.numero, r.tipo === 'niat' ? 'NIAT' : '5 Porquês', r.niat_numero || '', r.unidade_nome, SST.dataBR(r.data_ocorrencia),
+      r.classificacao ? CLASSIF[r.classificacao].rotulo : '', ETAPAS[r._etapa], r.responsavel_nome, r.autor];
+    if (!acs.length) linhas.push([...base, '', '(sem ações)', '', '', '', '', '', '', '', '']);
+    acs.forEach(a => linhas.push([...base, a.n, a.oque, a.origem, a.causa ? `${a.causaRot}: ${a.causa}` : '',
+      a.ger.nome + (a.ger.fonte ? ` (${a.ger.fonte})` : ''), a.ger.quando ? SST.dataBR(String(a.ger.quando).slice(0, 10)) : '',
+      a.quem, a.prazoISO ? SST.dataBR(a.prazoISO) : a.prazo, STATUS_ACAO[a.sit].rotulo, a.concluida_em ? SST.dataBR(a.concluida_em) : '']));
+  });
+  const el = document.createElement('a');
+  el.href = URL.createObjectURL(new Blob(['﻿' + [cab, ...linhas].map(l => l.map(q).join(';')).join('\r\n')], { type: 'text/csv;charset=utf-8' }));
+  el.download = `relatorio-geral-investigacoes-${SST.hojeISO()}.csv`;
+  el.click();
+}
+
+(async function () {
+  try { perfil = await SST.exigirLogin(); } catch (e) { return; }
+  await SST.barra(perfil, 'painel');
+  if (perfil.papel !== 'admin') $('lb-tecnico').hidden = true;
+  try { await carregar(); } catch (e) { return toast(traduzErro(e), 'erro', 6000); }
+  const tecs = {}; relatorios.forEach(r => tecs[r.responsavel] = r.responsavel_nome || '—');
+  $('f-tecnico').innerHTML += Object.entries(tecs).sort((a, b) => a[1].localeCompare(b[1])).map(([id, n]) => `<option value="${id}">${esc(n)}</option>`).join('');
+  (await SST.unidades()).forEach(u => $('f-unidade').insertAdjacentHTML('beforeend', `<option value="${esc(u.sigla)}">${esc(u.nome)}</option>`));
+  [...new Set(relatorios.map(r => r.ano))].sort((a, b) => b - a).forEach(a => $('f-ano').insertAdjacentHTML('beforeend', `<option>${a}</option>`));
+  ['tecnico', 'unidade', 'ano', 'st'].forEach(k => { const v = SST.param(k); if (v) $('f-' + k).value = v; });
+  ['f-tecnico', 'f-unidade', 'f-ano', 'f-classif', 'f-st'].forEach(id => $(id).addEventListener('change', desenhar));
+  $('f-busca').addEventListener('input', desenhar);
+  $('b-limpar').onclick = () => { ['f-tecnico', 'f-unidade', 'f-ano', 'f-classif', 'f-st', 'f-busca'].forEach(id => $(id).value = ''); desenhar(); };
+  document.querySelectorAll('.modo button').forEach(b => b.onclick = () => {
+    modo = b.dataset.modo; document.querySelectorAll('.modo button').forEach(x => x.classList.toggle('on', x === b)); desenhar();
+  });
+  $('b-csv').onclick = exportarCSV;
+  $('b-imprimir').onclick = () => window.print();
+  desenhar();
+})();
+</script>
+</body>
+</html>

@@ -33,6 +33,7 @@ function addRow(acao = {}) {
   const rn = rowCount++;
   tr.dataset.id = acao.id || SST.novoId();
   if (acao.concluida_em) tr.dataset.concluida = acao.concluida_em;
+  if (acao.criado_por_nome) { tr.dataset.criadoPor = acao.criado_por_nome; tr.dataset.criadoEm = acao.criado_em || ''; }
   tr.innerHTML = `
     <td><div class="cell-val" contenteditable="true" data-a="oque"></div></td>
     <td><div class="cell-val" contenteditable="true" data-a="quem"></div></td>
@@ -84,6 +85,8 @@ function lerAcoes() {
       replicar: (tr.querySelector('input[type=radio]:checked') || {}).value || ''
     };
     if (tr.dataset.concluida) a.concluida_em = tr.dataset.concluida;
+    if (tr.dataset.criadoPor) { a.criado_por_nome = tr.dataset.criadoPor; a.criado_em = tr.dataset.criadoEm; }
+    else if (a.oque && perfil) { a.criado_por_nome = perfil.nome; a.criado_em = SST.hojeISO(); tr.dataset.criadoPor = a.criado_por_nome; tr.dataset.criadoEm = a.criado_em; }
     return SST.ajustarConclusao(a);
   }).filter(a => a.oque || a.quem || a.quando || a.replicar || a.status !== 'pendente');
 }
