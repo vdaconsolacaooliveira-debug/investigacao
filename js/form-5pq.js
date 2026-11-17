@@ -2,6 +2,7 @@
    5 Porquês (FOR 005-002) — comportamento do formulário + gravação
    ===================================================================== */
 const { sb, toast, traduzErro, esc } = SST;
+let perfil = null;
 
 // ── Classificação ─────────────────────────────────────────────────
 const SEV = [
@@ -209,6 +210,9 @@ function atualizarBotaoNiat() {
   b.textContent = paiTravado ? '📝 Abrir NIAT (pai)' : '📝 Abrir NIAT';
   b.onclick = () => { location.href = `niat.html?id=${v}`; };
   sel.disabled = paiTravado;
+  const resp = document.getElementById('responsavel');
+  resp.disabled = paiTravado;
+  resp.title = paiTravado ? 'O responsável é o mesmo da NIAT pai. Para trocar, altere na NIAT.' : 'Responsável: quem vai ver e editar este relatório';
   sel.title = paiTravado ? 'Relatório filho: a ligação com a NIAT pai não pode ser trocada.' : 'NIAT que deu origem a esta análise';
   const cab = document.getElementById('pai-cab');
   const op = sel.selectedOptions[0];
@@ -218,8 +222,10 @@ function atualizarBotaoNiat() {
 // Ao escolher a NIAT, traz os dados dela para os campos vazios
 async function puxarDaNiat(id, sobrescrever) {
   if (!id) return;
-  const { data } = await sb.from('relatorios').select('unidade,classificacao,dados').eq('id', id).maybeSingle();
+  const { data } = await sb.from('relatorios').select('unidade,classificacao,dados,responsavel').eq('id', id).maybeSingle();
   if (!data) return;
+  const resp = document.getElementById('responsavel');
+  if (!resp.hidden) resp.value = data.responsavel;
   const c = (data.dados && data.dados.campos) || {};
   const alvo = {
     data_ocorrencia: c.data || '',
@@ -285,14 +291,17 @@ async function salvar() {
     niat_id: document.getElementById('niat-vinculo').value || null,
     dados
   };
+  const selResp = document.getElementById('responsavel');
+  if (!selResp.hidden && !selResp.disabled) linha.responsavel = selResp.value;
   b.disabled = true; b.textContent = '⏳ Salvando…';
   try {
     if (!registro.id) {
       const { data, error } = await sb.from('relatorios')
-        .insert({ ...linha, tipo: '5pq', unidade: campos.unidade }).select('id,numero,unidade').single();
+        .insert({ ...linha, tipo: '5pq', unidade: campos.unidade }).select('id,numero,unidade,responsavel').single();
       if (error) throw error;
       registro = { id: data.id, numero: data.numero };
       document.getElementById('unidade').value = data.unidade;
+      if (!selResp.hidden) selResp.value = data.responsavel;
       history.replaceState(null, '', `cincoporques.html?id=${data.id}`);
       mostrarNumero();
     } else {
@@ -322,6 +331,7 @@ async function carregar(id) {
   cadeiaCount = 0;
   (d.cadeias && d.cadeias.length ? d.cadeias : [[{}]]).forEach(linhas => novaCadeia(linhas));
   document.getElementById('situacao').value = data.situacao;
+  if (!document.getElementById('responsavel').hidden) document.getElementById('responsavel').value = data.responsavel;
   paiTravado = !!data.niat_id;
   await carregarNiats(data.niat_id);
   carregandoForm = false;
@@ -332,9 +342,10 @@ async function carregar(id) {
 
 // ── Início ────────────────────────────────────────────────────────
 (async function iniciar() {
-  let perfil;
   try { perfil = await SST.exigirLogin(); } catch (e) { return; }
   await SST.barra(perfil, '5pq');
+  await SST.seletorResponsavel(perfil, document.getElementById('responsavel'));
+  document.getElementById('responsavel').addEventListener('change', marcarSujo);
   await SST.preencherUnidades(document.getElementById('unidade'));
   ['data-ocorrencia', 'data-emissao-footer'].forEach(i => mascaraData(document.getElementById(i)));
 

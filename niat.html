@@ -285,6 +285,8 @@
   /* ── SISTEMA: barra de ações ── */
   body { padding: 0; }
   #conteudo { padding: 0 24px 40px; }
+  .toolbar { max-width: 1040px !important;
+  }
   .toolbar { position: sticky; top: 56px; z-index: 40; background: #e8e8e8; padding: 8px 0; margin-bottom: 8px; }
   .toolbar button, .toolbar select { padding: 7px 10px !important; }
   .toolbar #sev-select { max-width: 175px; }
@@ -298,9 +300,11 @@
   .field select:disabled { color: #1a1a1a; opacity: 1; background: #eceff3; cursor: not-allowed; }
   .btn-x { background: none; border: none; color: #c0392b; cursor: pointer; font-weight: bold; font-size: 13px; padding: 6px; width: 100%; }
   .btn-x:hover { background: #fff0ee; }
+  .ishi-option.removido { color: #8a6510; font-style: italic; }
+  .toolbar #responsavel { max-width: 190px; }
   .foto-nova img { outline: 2px dashed #E07B00; outline-offset: 2px; }
   @media print {
-    .toolbar, .col-x, .btn-x, .btn-foto, .foto-x { display: none !important; }
+    .toolbar, .col-x, .btn-x, .btn-foto, .foto-x, #ishi-editar { display: none !important; }
     .page { box-shadow: none !important; }
   }
 </style>
@@ -321,6 +325,7 @@
     <option value="rascunho">✏️ Rascunho</option>
     <option value="concluido">✅ Concluído</option>
   </select>
+  <select id="responsavel" hidden title="Responsável: quem vai ver e editar este relatório"></select>
   <button class="primary" id="b-salvar" type="button">💾 Salvar</button>
   <button type="button" onclick="window.print()">🖨️ Imprimir / PDF</button>
   <button type="button" id="b-5pq" hidden>➕ Gerar 5 Porquês</button>
@@ -488,113 +493,11 @@
 
   <!-- ISHIKAWA -->
   <div class="section">
-    <div class="section-title">6. Diagrama de Ishikawa — Análise de Causas (6Ms)</div>
-    <div class="ishikawa-grid">
-
-      <div class="ishi-m" data-m="mao_de_obra">
-        <div class="ishi-m-header">👷 Mão de Obra</div>
-        <div class="ishi-m-body">
-          <label class="ishi-option"><input type="checkbox"> Falta de atenção / distração</label>
-          <label class="ishi-option"><input type="checkbox"> Uso de celular durante a atividade</label>
-          <label class="ishi-option"><input type="checkbox"> Excesso de confiança</label>
-          <label class="ishi-option"><input type="checkbox"> Falta de treinamento ou capacitação</label>
-          <label class="ishi-option"><input type="checkbox"> Não seguiu o procedimento</label>
-          <label class="ishi-option"><input type="checkbox"> Cansaço / fadiga</label>
-          <label class="ishi-option"><input type="checkbox"> Pressa para terminar a tarefa</label>
-          <label class="ishi-option"><input type="checkbox"> Falta de experiência na função</label>
-          <label class="ishi-option"><input type="checkbox"> Trabalhando sozinho em tarefa de risco</label>
-          <label class="ishi-option"><input type="checkbox"> Falta de percepção de risco</label>
-          <label class="ishi-option"><input type="checkbox"> Não uso do EPI mesmo disponível</label>
-          <label class="ishi-option"><input type="checkbox"> Estado de saúde inadequado para a atividade</label>
-          <label class="ishi-option"><input type="checkbox"> Improviso por iniciativa própria, sem autorização</label>
-        </div>
-      </div>
-
-      <div class="ishi-m" data-m="maquina">
-        <div class="ishi-m-header">🚜 Máquina / Equipamento</div>
-        <div class="ishi-m-body">
-          <label class="ishi-option"><input type="checkbox"> Falta de manutenção preventiva</label>
-          <label class="ishi-option"><input type="checkbox"> Equipamento com defeito ou desgastado</label>
-          <label class="ishi-option"><input type="checkbox"> Proteção ausente ou danificada</label>
-          <label class="ishi-option"><input type="checkbox"> Ferramenta inadequada para a tarefa</label>
-          <label class="ishi-option"><input type="checkbox"> Pneu gasto ou calibragem errada</label>
-          <label class="ishi-option"><input type="checkbox"> Cabo / correia / cinta em mau estado</label>
-          <label class="ishi-option"><input type="checkbox"> Máquina / equipamento sem revisão</label>
-          <label class="ishi-option"><input type="checkbox"> Disco ou lâmina em mau estado</label>
-          <label class="ishi-option"><input type="checkbox"> Dispositivo de segurança inoperante</label>
-          <label class="ishi-option"><input type="checkbox"> Vazamento hidráulico ou pneumático</label>
-          <label class="ishi-option"><input type="checkbox"> Painel ou alarme do equipamento inoperante</label>
-          <label class="ishi-option"><input type="checkbox"> Sinalização sonora ou luminosa inoperante</label>
-          <label class="ishi-option"><input type="checkbox"> Modificação não autorizada no equipamento</label>
-        </div>
-      </div>
-
-      <div class="ishi-m" data-m="metodo">
-        <div class="ishi-m-header">📋 Método</div>
-        <div class="ishi-m-body">
-          <label class="ishi-option"><input type="checkbox"> Procedimento inexistente para a tarefa</label>
-          <label class="ishi-option"><input type="checkbox"> Procedimento existe mas não é seguido</label>
-          <label class="ishi-option"><input type="checkbox"> Procedimento desatualizado ou incompatível com a prática</label>
-          <label class="ishi-option"><input type="checkbox"> Regra de trânsito interno não definida</label>
-          <label class="ishi-option"><input type="checkbox"> Fluxo de veículos e pedestres não sinalizado</label>
-          <label class="ishi-option"><input type="checkbox"> Forma de manejar os animais inadequada</label>
-          <label class="ishi-option"><input type="checkbox"> Forma de manuseio de produto químico inadequada</label>
-          <label class="ishi-option"><input type="checkbox"> Trabalho em altura sem planejamento</label>
-          <label class="ishi-option"><input type="checkbox"> Tarefa feita de forma improvisada</label>
-          <label class="ishi-option"><input type="checkbox"> Falta de permissão de trabalho para a atividade</label>
-          <label class="ishi-option"><input type="checkbox"> Falha de comunicação entre os operadores</label>
-        </div>
-      </div>
-
-      <div class="ishi-m" data-m="material">
-        <div class="ishi-m-header">🧰 Material</div>
-        <div class="ishi-m-body">
-          <label class="ishi-option"><input type="checkbox"> EPI ausente</label>
-          <label class="ishi-option"><input type="checkbox"> EPI inadequado para o risco</label>
-          <label class="ishi-option"><input type="checkbox"> EPI danificado ou vencido</label>
-          <label class="ishi-option"><input type="checkbox"> Produto químico sem identificação (FISPQ)</label>
-          <label class="ishi-option"><input type="checkbox"> Embalagem de produto inadequada</label>
-          <label class="ishi-option"><input type="checkbox"> Material ou peça com defeito</label>
-          <label class="ishi-option"><input type="checkbox"> Material utilizado errado (especificação incorreta)</label>
-          <label class="ishi-option"><input type="checkbox"> Armazenamento ou acondicionamento inadequado</label>
-          <label class="ishi-option"><input type="checkbox"> Material contaminado</label>
-          <label class="ishi-option"><input type="checkbox"> Carga acima da capacidade do equipamento</label>
-          <label class="ishi-option"><input type="checkbox"> Ausência de sinalização no local</label>
-        </div>
-      </div>
-
-      <div class="ishi-m" data-m="meio_ambiente">
-        <div class="ishi-m-header">🌿 Meio Ambiente</div>
-        <div class="ishi-m-body">
-          <label class="ishi-option"><input type="checkbox"> Piso escorregadio (lama, areia, água, esterco)</label>
-          <label class="ishi-option"><input type="checkbox"> Estrada interna em mau estado</label>
-          <label class="ishi-option"><input type="checkbox"> Pista estreita sem espaço para cruzamento</label>
-          <label class="ishi-option"><input type="checkbox"> Sinalização de trânsito ausente ou apagada</label>
-          <label class="ishi-option"><input type="checkbox"> Visibilidade prejudicada (poeira, sol, chuva)</label>
-          <label class="ishi-option"><input type="checkbox"> Visibilidade reduzida por vegetação ou capim alto</label>
-          <label class="ishi-option"><input type="checkbox"> Área de trabalho desorganizada</label>
-          <label class="ishi-option"><input type="checkbox"> Presença de animais no trajeto ou área de trabalho</label>
-          <label class="ishi-option"><input type="checkbox"> Sem controle de pragas ou animais peçonhentos</label>
-          <label class="ishi-option"><input type="checkbox"> Condições climáticas adversas (chuva, calor, vento)</label>
-          <label class="ishi-option"><input type="checkbox"> Barracão com espaço reduzido para manejo</label>
-          <label class="ishi-option"><input type="checkbox"> Iluminação insuficiente</label>
-          <label class="ishi-option"><input type="checkbox"> Local de difícil acesso ou restrito</label>
-        </div>
-      </div>
-
-      <div class="ishi-m" data-m="medicao">
-        <div class="ishi-m-header">📊 Medição</div>
-        <div class="ishi-m-body">
-          <label class="ishi-option"><input type="checkbox"> Velocidade dos veículos não controlada</label>
-          <label class="ishi-option"><input type="checkbox"> Sem inspeção periódica de máquinas e equipamentos</label>
-          <label class="ishi-option"><input type="checkbox"> Sem controle de manutenção preventiva</label>
-          <label class="ishi-option"><input type="checkbox"> Indicadores de segurança não acompanhados</label>
-          <label class="ishi-option"><input type="checkbox"> Ausência de inspeção de campo</label>
-          <label class="ishi-option"><input type="checkbox"> Monitoramento de área de risco inexistente</label>
-        </div>
-      </div>
-
+    <div class="section-title" style="display:flex;justify-content:space-between;align-items:center">
+      <span id="ishi-titulo">6. Diagrama de Ishikawa — Análise de Causas (6Ms)</span>
+      <a id="ishi-editar" href="configuracoes.html" hidden style="font-size:10px;color:#1a3a5c;text-decoration:none;font-weight:700;text-transform:none;letter-spacing:0">✏️ Editar lista</a>
     </div>
+    <div class="ishikawa-grid" id="ishi-grid"></div>
 
     <label style="font-size:9px;font-weight:700;text-transform:uppercase;color:#999;letter-spacing:0.4px;display:block;margin:14px 0 4px">Observações da análise</label>
     <div class="textarea" contenteditable="true" data-f="ishikawa_obs" style="min-height:80px; font-size:14px; line-height:1.7"></div>

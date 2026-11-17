@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Configurações — Sistema SST</title>
+<link rel="icon" href="img/logo-db.png">
+<link rel="stylesheet" href="css/app.css">
+<style>
+  .grupos { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  @media (max-width: 900px) { .grupos { grid-template-columns: 1fr; } }
+  .grupo { overflow: hidden; display: flex; flex-direction: column; }
+  .grupo-cab { background: var(--azul); color: #fff; display: flex; align-items: center; gap: 8px; padding: 8px 10px; }
+  .grupo-cab input { background: rgba(255,255,255,.1); border: 1px solid transparent; color: #fff; font: inherit; border-radius: 5px; padding: 6px 8px; outline: none; }
+  .grupo-cab input:hover { border-color: rgba(255,255,255,.25); }
+  .grupo-cab input:focus { border-color: var(--dourado); background: rgba(255,255,255,.18); }
+  .grupo-cab .ic { width: 44px; text-align: center; font-size: 16px; }
+  .grupo-cab .nome { flex: 1; font-weight: 700; text-transform: uppercase; letter-spacing: .4px; font-size: 13px; }
+  .grupo-cab button, .item button {
+    background: none; border: 1px solid transparent; color: inherit; cursor: pointer; border-radius: 5px;
+    padding: 4px 7px; font-size: 13px; line-height: 1; opacity: .75;
+  }
+  .grupo-cab button:hover { opacity: 1; border-color: rgba(255,255,255,.35); }
+  .itens { padding: 8px 10px; display: flex; flex-direction: column; gap: 4px; flex: 1; }
+  .item { display: flex; align-items: center; gap: 6px; }
+  .item .marca { width: 14px; height: 14px; border: 1.5px solid #9aa5b1; border-radius: 3px; flex-shrink: 0; }
+  .item input { flex: 1; font: inherit; font-size: 13px; border: 1px solid transparent; border-radius: 5px; padding: 6px 8px; outline: none; background: transparent; }
+  .item input:hover { border-color: var(--borda); }
+  .item input:focus { border-color: var(--azul); background: var(--azul-claro); }
+  .item button { color: var(--cinza); }
+  .item button:hover { opacity: 1; background: #f1f3f6; }
+  .item button.rem:hover { color: var(--grave); background: #fff1f5; }
+  .novo-item { display: flex; gap: 6px; padding: 8px 10px 12px; border-top: 1px dashed var(--borda); }
+  .novo-item input { flex: 1; font: inherit; font-size: 13px; border: 1px solid #cfd5dd; border-radius: 6px; padding: 7px 9px; outline: none; }
+  .novo-item input:focus { border-color: var(--azul); box-shadow: 0 0 0 3px rgba(26,58,92,.12); }
+  .salvo { animation: pisca 1s ease-out; }
+  @keyframes pisca { from { background: #e6f4e7; } to { background: transparent; } }
+</style>
+</head>
+<body class="sst-app">
+<header id="sst-appbar"></header>
+
+<main class="sst-main">
+  <div class="sst-titulo">
+    <div>
+      <h1>Diagrama de Ishikawa — lista de causas</h1>
+      <p>Edite os grupos (os "Ms") e os itens que aparecem para marcar na NIAT. Só o Administrador tem acesso a esta tela.</p>
+    </div>
+    <button class="btn primario" id="b-grupo" type="button">➕ Novo grupo</button>
+  </div>
+
+  <div class="alerta info">
+    As alterações valem na hora para os relatórios novos e para os que forem abertos depois.
+    Relatórios já salvos mantêm o que foi marcado: se um item for removido ou renomeado, ele continua aparecendo marcado naquele relatório.
+    Para editar, clique no texto, altere e aperte <b>Enter</b> (ou clique fora).
+  </div>
+
+  <div class="grupos" id="grupos"><div class="carregando" style="min-height:200px"><div><div class="giro"></div>Carregando…</div></div></div>
+</main>
+
+<script src="js/vendor/supabase.js"></script>
+<script src="js/config.js"></script>
+<script src="js/app.js"></script>
+<script>
+const { sb, esc, toast, traduzErro } = SST;
+let grupos = [];
+const $ = id => document.getElementById(id);
+
+async function carregar() {
+  grupos = await SST.catalogoIshikawa();
+  desenhar();
+}
+
+function desenhar() {
+  $('grupos').innerHTML = grupos.map((g, gi) => `
+    <section class="sst-card grupo" data-g="${g.id}">
+      <div class="grupo-cab">
+        <input class="ic" value="${esc(g.icone)}" maxlength="4" title="Ícone (emoji)" data-campo="icone">
+        <input class="nome" value="${esc(g.nome)}" title="Nome do grupo" data-campo="nome">
+        <button data-acao="g-sobe" title="Mover para antes" ${gi === 0 ? 'disabled style="opacity:.25"' : ''}>▲</button>
+        <button data-acao="g-desce" title="Mover para depois" ${gi === grupos.length - 1 ? 'disabled style="opacity:.25"' : ''}>▼</button>
+        <button data-acao="g-remove" title="Remover grupo">🗑️</button>
+      </div>
+      <div class="itens">
+        ${g.itens.map((it, ii) => `
+          <div class="item" data-i="${it.id}">
+            <span class="marca"></span>
+            <input value="${esc(it.texto)}" title="Texto do item">
+            <button data-acao="i-sobe" title="Subir" ${ii === 0 ? 'disabled style="opacity:.2"' : ''}>▲</button>
+            <button data-acao="i-desce" title="Descer" ${ii === g.itens.length - 1 ? 'disabled style="opacity:.2"' : ''}>▼</button>
+            <button data-acao="i-remove" class="rem" title="Remover item">✕</button>
+          </div>`).join('') || '<div class="sub" style="color:var(--cinza);font-size:12px;padding:6px">Nenhum item. Adicione abaixo.</div>'}
+      </div>
+      <div class="novo-item">
+        <input placeholder="Novo item…" data-novo>
+        <button class="btn pequeno" data-acao="i-novo">+ Adicionar</button>
+      </div>
+    </section>`).join('') || '<div class="sst-card vazio">Nenhum grupo. Clique em "Novo grupo".</div>';
+  ligar();
+}
+
+function ligar() {
+  // edição do grupo
+  document.querySelectorAll('.grupo-cab input').forEach(inp => {
+    const g = () => grupos.find(x => x.id === inp.closest('[data-g]').dataset.g);
+    inp.onkeydown = e => { if (e.key === 'Enter') inp.blur(); if (e.key === 'Escape') { inp.value = g()[inp.dataset.campo]; inp.blur(); } };
+    inp.onblur = async () => {
+      const grupo = g(), campo = inp.dataset.campo, v = inp.value.trim();
+      if (v === grupo[campo]) return;
+      if (campo === 'nome' && !v) { inp.value = grupo.nome; return toast('O grupo precisa de um nome.', 'erro'); }
+      const { error } = await sb.from('ishikawa_grupos').update({ [campo]: v }).eq('id', grupo.id);
+      if (error) { inp.value = grupo[campo]; return toast(traduzErro(error), 'erro'); }
+      grupo[campo] = v; inp.classList.add('salvo'); setTimeout(() => inp.classList.remove('salvo'), 1000);
+    };
+  });
+  // edição do item
+  document.querySelectorAll('.item input').forEach(inp => {
+    const achar = () => { const g = grupos.find(x => x.id === inp.closest('[data-g]').dataset.g); return g.itens.find(x => x.id === inp.closest('[data-i]').dataset.i); };
+    inp.onkeydown = e => { if (e.key === 'Enter') inp.blur(); if (e.key === 'Escape') { inp.value = achar().texto; inp.blur(); } };
+    inp.onblur = async () => {
+      const it = achar(), v = inp.value.trim();
+      if (v === it.texto) return;
+      if (!v) { inp.value = it.texto; return toast('Para apagar o item, use o ✕.', 'erro'); }
+      const { error } = await sb.from('ishikawa_itens').update({ texto: v }).eq('id', it.id);
+      if (error) { inp.value = it.texto; return toast(traduzErro(error), 'erro'); }
+      it.texto = v; inp.classList.add('salvo'); setTimeout(() => inp.classList.remove('salvo'), 1000);
+    };
+  });
+  // novo item com Enter
+  document.querySelectorAll('[data-novo]').forEach(inp => inp.onkeydown = e => {
+    if (e.key === 'Enter') inp.closest('.grupo').querySelector('[data-acao=i-novo]').click();
+  });
+  // botões
+  document.querySelectorAll('[data-acao]').forEach(b => b.onclick = () => acao(b));
+}
+
+async function renumerar(tabela, lista) {
+  const r = await Promise.all(lista.map((x, i) => sb.from(tabela).update({ ordem: (i + 1) * 10 }).eq('id', x.id)));
+  const e = r.find(x => x.error); if (e) throw e.error;
+  lista.forEach((x, i) => x.ordem = (i + 1) * 10);
+}
+
+async function acao(b) {
+  const sec = b.closest('[data-g]');
+  const g = sec && grupos.find(x => x.id === sec.dataset.g);
+  const linha = b.closest('[data-i]');
+  const it = linha && g.itens.find(x => x.id === linha.dataset.i);
+  const mover = (lista, obj, d) => { const i = lista.indexOf(obj); [lista[i], lista[i + d]] = [lista[i + d], lista[i]]; };
+  try {
+    switch (b.dataset.acao) {
+      case 'g-sobe': case 'g-desce':
+        mover(grupos, g, b.dataset.acao === 'g-sobe' ? -1 : 1); await renumerar('ishikawa_grupos', grupos); break;
+      case 'i-sobe': case 'i-desce':
+        mover(g.itens, it, b.dataset.acao === 'i-sobe' ? -1 : 1); await renumerar('ishikawa_itens', g.itens); break;
+      case 'i-remove': {
+        if (!confirm(`Remover o item "${it.texto}" da lista?\n\nRelatórios antigos que já marcaram este item continuam com ele.`)) return;
+        const { error } = await sb.from('ishikawa_itens').update({ ativo: false }).eq('id', it.id);
+        if (error) throw error;
+        g.itens = g.itens.filter(x => x !== it); toast('Item removido.', 'ok'); break;
+      }
+      case 'g-remove': {
+        if (!confirm(`Remover o grupo "${g.nome}" e todos os ${g.itens.length} itens dele?\n\nRelatórios antigos continuam com o que foi marcado.`)) return;
+        const { error } = await sb.from('ishikawa_grupos').update({ ativo: false }).eq('id', g.id);
+        if (error) throw error;
+        grupos = grupos.filter(x => x !== g); toast('Grupo removido.', 'ok'); break;
+      }
+      case 'i-novo': {
+        const inp = sec.querySelector('[data-novo]'); const texto = inp.value.trim();
+        if (!texto) { inp.focus(); return; }
+        if (g.itens.some(x => x.texto.toLowerCase() === texto.toLowerCase())) return toast('Esse item já existe neste grupo.', 'erro');
+        const ordem = (g.itens.length ? Math.max(...g.itens.map(x => x.ordem)) : 0) + 10;
+        const { data, error } = await sb.from('ishikawa_itens').insert({ grupo_id: g.id, texto, ordem }).select().single();
+        if (error) throw error;
+        g.itens.push(data); desenhar();
+        document.querySelector(`[data-g="${g.id}"] [data-novo]`).focus();
+        return;
+      }
+    }
+    desenhar();
+  } catch (e) { toast(traduzErro(e), 'erro'); carregar(); }
+}
+
+$('b-grupo').onclick = async () => {
+  const nome = prompt('Nome do novo grupo (ex.: Gestão, Comunicação):');
+  if (!nome || !nome.trim()) return;
+  const ordem = (grupos.length ? Math.max(...grupos.map(x => x.ordem)) : 0) + 10;
+  const { data, error } = await sb.from('ishikawa_grupos').insert({ nome: nome.trim(), icone: '📌', ordem }).select().single();
+  if (error) return toast(traduzErro(error), 'erro');
+  grupos.push({ ...data, itens: [] }); desenhar();
+  document.querySelector(`[data-g="${data.id}"] [data-novo]`).focus();
+  toast('Grupo criado. Agora adicione os itens.', 'ok');
+};
+
+(async function () {
+  let eu;
+  try { eu = await SST.exigirLogin({ admin: true }); } catch (e) { return; }
+  await SST.barra(eu, 'config');
+  try { await carregar(); } catch (e) { toast(traduzErro(e), 'erro'); }
+})();
+</script>
+</body>
+</html>

@@ -1,7 +1,8 @@
 /* =====================================================================
    NIAT (FOR 005-001) — comportamento do formulário + gravação no banco
    ===================================================================== */
-const { sb, toast, traduzErro } = SST;
+const { sb, toast, traduzErro, esc } = SST;
+let perfil = null;
 
 // ── Classificação (mantém o comportamento original) ───────────────
 const severities = [
@@ -60,20 +61,72 @@ function lerAcoes() {
   })).filter(a => a.oque || a.quem || a.quando || a.replicar);
 }
 
-// ── Ishikawa (guarda o texto das opções marcadas, por M) ──────────
-function lerIshikawa() {
-  const o = {};
-  document.querySelectorAll('.ishi-m[data-m]').forEach(m => {
-    o[m.dataset.m] = [...m.querySelectorAll('input[type=checkbox]')]
-      .filter(c => c.checked).map(c => c.parentElement.textContent.trim());
-  });
-  return o;
+// ── Ishikawa (lista vem do banco; o Administrador edita) ──────────
+// Cada marcação é guardada com o id e o texto do item (e o nome do grupo),
+// assim o relatório continua igual mesmo se a lista mudar depois.
+let catalogo = [];
+function desenharIshikawa() {
+  const grid = document.getElementById('ishi-grid');
+  grid.innerHTML = catalogo.map(g => `
+    <div class="ishi-m" data-g="${g.id}" data-gn="${esc(g.nome)}" data-chave="${esc(g.chave || '')}">
+      <div class="ishi-m-header">${esc(g.icone)} ${esc(g.nome)}</div>
+      <div class="ishi-m-body">${g.itens.map(it =>
+        `<label class="ishi-option"><input type="checkbox" data-i="${it.id}"> ${esc(it.texto)}</label>`).join('')}</div>
+    </div>`).join('');
+  const n = catalogo.length;
+  document.getElementById('ishi-titulo').textContent =
+    `6. Diagrama de Ishikawa — Análise de Causas${n === 6 ? ' (6Ms)' : ''}`;
 }
-function escreverIshikawa(dados = {}) {
-  document.querySelectorAll('.ishi-m[data-m]').forEach(m => {
-    const marcados = dados[m.dataset.m] || [];
-    m.querySelectorAll('input[type=checkbox]').forEach(c => c.checked = marcados.includes(c.parentElement.textContent.trim()));
+function textoOpcao(cb) { return cb.parentElement.textContent.trim(); }
+function lerIshikawa() {
+  return [...document.querySelectorAll('#ishi-grid input[type=checkbox]:checked')].map(cb => {
+    const g = cb.closest('.ishi-m');
+    return { g: g.dataset.g || null, gn: g.dataset.gn, i: cb.dataset.i || null, t: textoOpcao(cb) };
   });
+}
+// Item que não está mais na lista: aparece marcado, em itálico, só neste relatório
+function opcaoAntiga(grupoEl, texto) {
+  const l = document.createElement('label');
+  l.className = 'ishi-option removido';
+  l.title = 'Item que não está mais na lista atual (mantido neste relatório)';
+  l.innerHTML = `<input type="checkbox" checked> ${esc(texto)}`;
+  grupoEl.querySelector('.ishi-m-body').appendChild(l);
+}
+function grupoAntigo(nome) {
+  const grid = document.getElementById('ishi-grid');
+  let el = [...grid.querySelectorAll('.ishi-m')].find(x => x.dataset.gn === nome && !x.dataset.g);
+  if (!el) {
+    el = document.createElement('div');
+    el.className = 'ishi-m';
+    el.dataset.gn = nome;
+    el.innerHTML = `<div class="ishi-m-header">${esc(nome)}</div><div class="ishi-m-body"></div>`;
+    grid.appendChild(el);
+  }
+  return el;
+}
+function escreverIshikawa(dados) {
+  desenharIshikawa();
+  if (!dados) return;
+  const grid = document.getElementById('ishi-grid');
+  const porId = id => grid.querySelector(`input[data-i="${id}"]`);
+  const marcar = (grupoEl, texto) => {
+    const cb = [...grupoEl.querySelectorAll('input[type=checkbox]')].find(c => textoOpcao(c).toLowerCase() === texto.toLowerCase());
+    if (cb) cb.checked = true; else opcaoAntiga(grupoEl, texto);
+  };
+  if (Array.isArray(dados)) {
+    dados.forEach(m => {
+      const cb = m.i && porId(m.i);
+      if (cb) { cb.checked = true; return; }
+      const g = (m.g && grid.querySelector(`.ishi-m[data-g="${m.g}"]`)) || grupoAntigo(m.gn || 'Outros');
+      marcar(g, m.t);
+    });
+  } else {
+    // formato antigo: { mao_de_obra: ['texto', ...], ... }
+    Object.entries(dados).forEach(([chave, textos]) => (textos || []).forEach(t => {
+      const g = grid.querySelector(`.ishi-m[data-chave="${chave}"]`) || grupoAntigo(chave.replace(/_/g, ' '));
+      marcar(g, t);
+    }));
+  }
 }
 
 // ── Fotos ─────────────────────────────────────────────────────────
@@ -203,6 +256,8 @@ async function salvar() {
       resumo: (c.w_oque || c.descricao || '').slice(0, 300),
       situacao: document.getElementById('situacao').value
     };
+    const selResp = document.getElementById('responsavel');
+    if (!selResp.hidden && !selResp.disabled) linha.responsavel = selResp.value;
     if (!registro.id) {
       const { data, error } = await sb.from('relatorios')
         .insert({ ...linha, tipo: 'niat', unidade: c.unidade, dados })
@@ -218,7 +273,9 @@ async function salvar() {
     if (error) throw error;
     desenharFotos();
     marcarLimpo('✔ Salvo às ' + new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }));
-    toast(`Relatório ${registro.numero} salvo.`, 'ok');
+    const resp = document.getElementById('responsavel');
+    const outro = !resp.hidden && resp.value !== perfil.id;
+    toast(`Relatório ${registro.numero} salvo.` + (outro ? ` Responsável: ${resp.selectedOptions[0].text.replace('👤 ', '')}.` : ''), 'ok', outro ? 5000 : 3500);
     return true;
   } catch (e) {
     toast('Não foi possível salvar: ' + traduzErro(e), 'erro', 6000);
@@ -242,6 +299,7 @@ async function carregar(id) {
   document.getElementById('action-tbody').innerHTML = '';
   (d.acoes && d.acoes.length ? d.acoes : [{}, {}]).forEach(a => addRow(a));
   document.getElementById('situacao').value = data.situacao;
+  if (!document.getElementById('responsavel').hidden) document.getElementById('responsavel').value = data.responsavel;
   const caminhos = (d.fotos || []).map(f => f.caminho);
   const urls = await SST.urlsFotos(caminhos).catch(() => ({}));
   fotos = (d.fotos || []).map(f => ({ ...f, url: urls[f.caminho] || '' }));
@@ -308,10 +366,14 @@ async function gerarOuAbrir5pq() {
 
 // ── Início ────────────────────────────────────────────────────────
 (async function iniciar() {
-  let perfil;
   try { perfil = await SST.exigirLogin(); } catch (e) { return; }
   await SST.barra(perfil, 'niat');
   await SST.preencherUnidades(document.getElementById('unidade'));
+  catalogo = await SST.catalogoIshikawa().catch(e => { toast(traduzErro(e), 'erro'); return []; });
+  desenharIshikawa();
+  const admin = await SST.seletorResponsavel(perfil, document.getElementById('responsavel'));
+  document.getElementById('ishi-editar').hidden = !admin;
+  document.getElementById('responsavel').addEventListener('change', marcarSujo);
   mascaraData(document.getElementById('data-ocorrencia'));
 
   const form = document.getElementById('form');

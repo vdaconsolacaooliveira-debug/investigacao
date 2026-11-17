@@ -217,7 +217,8 @@ async function mostrarMenu(perfil) {
 
   if (perfil.papel === 'admin') {
     document.getElementById('atalhos').insertAdjacentHTML('beforeend',
-      `<a class="sst-card atalho" href="usuarios.html"><span class="ic">👥</span><div><b>Usuários</b><span id="pend-txt">Aprovar e gerenciar acessos</span></div></a>`);
+      `<a class="sst-card atalho" href="usuarios.html"><span class="ic">👥</span><div><b>Usuários</b><span id="pend-txt">Aprovar e gerenciar acessos</span></div></a>
+       <a class="sst-card atalho" href="configuracoes.html"><span class="ic">⚙️</span><div><b>Lista do Ishikawa</b><span>Editar grupos e itens de causas</span></div></a>`);
     const { count } = await sb.from('perfis').select('id', { count: 'exact', head: true }).eq('situacao', 'pendente');
     if (count) document.getElementById('pend-txt').innerHTML = `<b style="color:#8a6510;display:inline">${count} aguardando aprovação</b>`;
   }

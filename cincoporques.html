@@ -229,6 +229,7 @@ body { padding: 0; }
 .toolbar button, .toolbar select { padding: 7px 10px !important; }
   .toolbar #sev-select { max-width: 175px; }
   .toolbar #situacao { max-width: 125px; }
+  .toolbar #responsavel { max-width: 190px; }
   .toolbar .estado { flex-basis: 100%; text-align: right; margin: -4px 0 0; font-size: 11px; }
   .toolbar .num-doc { font-family: Consolas, "Courier New", monospace; font-weight: bold; font-size: 14px; color: #1a3a5c; padding: 0 6px; }
 .toolbar .num-doc.novo { font-family: Arial, sans-serif; font-weight: normal; font-size: 12px; color: #777; }
@@ -255,6 +256,7 @@ body { padding: 0; }
     <option value="rascunho">✏️ Rascunho</option>
     <option value="concluido">✅ Concluído</option>
   </select>
+  <select id="responsavel" hidden title="Responsável: quem vai ver e editar este relatório"></select>
   <button class="primary" id="b-salvar" type="button">💾 Salvar</button>
   <button type="button" onclick="window.print()">🖨️ Imprimir / PDF</button>
   <button type="button" id="b-niat" hidden>📝 Abrir NIAT</button>

@@ -96,11 +96,11 @@ async function agir(id, acao) {
   await SST.barra(eu, 'usuarios');
   const [{ data, error }, { data: rels }] = await Promise.all([
     sb.from('perfis').select('*').order('criado_em', { ascending: false }),
-    sb.from('relatorios').select('criado_por')
+    sb.from('relatorios').select('responsavel')
   ]);
   if (error) return toast(traduzErro(error), 'erro');
   const qtd = {};
-  (rels || []).forEach(r => qtd[r.criado_por] = (qtd[r.criado_por] || 0) + 1);
+  (rels || []).forEach(r => qtd[r.responsavel] = (qtd[r.responsavel] || 0) + 1);
   lista = data.map(u => ({ ...u, _qtd: qtd[u.id] || 0 }));
   desenhar();
 })();

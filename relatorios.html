@@ -33,6 +33,7 @@
       <option value="leve">Leve</option><option value="incidente">Incidente / Quase acidente</option>
     </select>
     <select id="f-situacao"><option value="">Toda situação</option><option value="rascunho">Rascunho</option><option value="concluido">Concluído</option></select>
+    <select id="f-responsavel" hidden><option value="">Todos os responsáveis</option></select>
   </div>
 
   <div class="sst-card">
@@ -64,7 +65,7 @@ const colunas = () => [
   ['envolvido', 'Envolvido / resumo'],
   ['classificacao', 'Classificação'],
   ['situacao', 'Situação'],
-  ...(perfil.papel === 'admin' ? [['autor', 'Autor']] : []),
+  ...(perfil.papel === 'admin' ? [['responsavel_nome', 'Responsável']] : []),
   ['atualizado_em', 'Atualizado'],
   [null, '']
 ];
@@ -72,12 +73,12 @@ const colunas = () => [
 function filtrar() {
   const busca = normal($('f-busca').value).trim();
   const f = { tipo: $('f-tipo').value, unidade: $('f-unidade').value, ano: $('f-ano').value,
-              classificacao: $('f-classif').value, situacao: $('f-situacao').value };
+              classificacao: $('f-classif').value, situacao: $('f-situacao').value, responsavel: $('f-responsavel').value };
   const termos = busca.split(/\s+/).filter(Boolean);
   let l = todos.filter(r =>
     (!f.tipo || r.tipo === f.tipo) && (!f.unidade || r.unidade === f.unidade) &&
     (!f.ano || String(r.ano) === f.ano) && (!f.classificacao || r.classificacao === f.classificacao) &&
-    (!f.situacao || r.situacao === f.situacao) &&
+    (!f.situacao || r.situacao === f.situacao) && (!f.responsavel || r.responsavel === f.responsavel) &&
     termos.every(t => r._texto.includes(t)));
   const { campo, desc } = ordem;
   l.sort((a, b) => {
@@ -111,7 +112,7 @@ function desenhar() {
       <td style="max-width:300px">${esc(r.envolvido) || '—'}${r.resumo ? `<span class="sub">${esc(r.resumo.slice(0, 90))}${r.resumo.length > 90 ? '…' : ''}</span>` : ''}</td>
       <td>${r.classificacao ? `<span class="etiqueta ${r.classificacao}">${CLASSIF[r.classificacao].curto}</span>` : '—'}</td>
       <td><span class="etiqueta ${r.situacao}">${r.situacao === 'concluido' ? 'Concluído' : 'Rascunho'}</span></td>
-      ${admin ? `<td>${esc(r.autor || '—')}</td>` : ''}
+      ${admin ? `<td>${esc(r.responsavel_nome || '—')}${r.criado_por !== r.responsavel && r.autor ? `<span class="sub">criado por ${esc(SST.primeiroNome(r.autor))}</span>` : ''}</td>` : ''}
       <td>${SST.dataHoraBR(r.atualizado_em)}</td>
       <td class="acoes">${admin ? `<button class="btn pequeno perigo" data-excluir="${r.id}" title="Excluir">🗑️</button>` : ''}</td>
     </tr>`).join('');
@@ -138,11 +139,11 @@ async function excluir(id) {
 
 function exportarCSV() {
   const l = filtrar();
-  const cab = ['Número', 'Tipo', 'NIAT vinculada', 'Unidade', 'Data da ocorrência', 'Envolvido', 'Classificação', 'Situação', 'Resumo', 'Autor', 'Criado em', 'Atualizado em'];
+  const cab = ['Número', 'Tipo', 'NIAT pai', '5 Porquês filho', 'Unidade', 'Data da ocorrência', 'Envolvido', 'Classificação', 'Situação', 'Resumo', 'Responsável', 'Criado por', 'Criado em', 'Atualizado em'];
   const q = v => `"${String(v ?? '').replace(/"/g, '""').replace(/\r?\n/g, ' ')}"`;
-  const linhas = l.map(r => [r.numero, TIPOS[r.tipo].curto, r.niat_numero, r.unidade_nome, SST.dataBR(r.data_ocorrencia),
+  const linhas = l.map(r => [r.numero, TIPOS[r.tipo].curto, r.niat_numero, r._filho, r.unidade_nome, SST.dataBR(r.data_ocorrencia),
     r.envolvido, r.classificacao ? CLASSIF[r.classificacao].rotulo : '', r.situacao === 'concluido' ? 'Concluído' : 'Rascunho',
-    r.resumo, r.autor, SST.dataHoraBR(r.criado_em), SST.dataHoraBR(r.atualizado_em)].map(q).join(';'));
+    r.resumo, r.responsavel_nome, r.autor, SST.dataHoraBR(r.criado_em), SST.dataHoraBR(r.atualizado_em)].map(q).join(';'));
   const blob = new Blob(['﻿' + [cab.map(q).join(';'), ...linhas].join('\r\n')], { type: 'text/csv;charset=utf-8' });
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
@@ -164,13 +165,20 @@ function exportarCSV() {
   todos = data.map(r => ({
     ...r,
     numero_ord: `${r.ano}-${r.tipo}-${r.unidade}-${String(r.sequencia).padStart(5, '0')}`,
-    _texto: normal([r.numero, r.niat_numero, r.envolvido, r.resumo, r.unidade_nome, r.unidade, r.autor, TIPOS[r.tipo].curto].join(' '))
+    _texto: normal([r.numero, r.niat_numero, r.envolvido, r.resumo, r.unidade_nome, r.unidade, r.autor, r.responsavel_nome, TIPOS[r.tipo].curto].join(' '))
   }));
   const filhos = {};
   todos.forEach(r => { if (r.niat_id) filhos[r.niat_id] = r.numero; });
   todos.forEach(r => { if (filhos[r.id]) { r._filho = filhos[r.id]; r._texto += ' ' + normal(r._filho); } });
   ordem = { campo: 'atualizado_em', desc: true };
 
+  if (perfil.papel === 'admin') {
+    const resp = {}; todos.forEach(r => { if (r.responsavel) resp[r.responsavel] = r.responsavel_nome || '—'; });
+    $('f-responsavel').innerHTML += Object.entries(resp).sort((a, b) => a[1].localeCompare(b[1]))
+      .map(([id, n]) => `<option value="${id}">${esc(n)}</option>`).join('');
+    $('f-responsavel').hidden = false;
+    document.querySelector('.filtros').style.gridTemplateColumns = '2fr repeat(6, 1fr)';
+  }
   const anos = [...new Set(todos.map(r => r.ano))].sort((a, b) => b - a);
   $('f-ano').innerHTML += anos.map(a => `<option>${a}</option>`).join('');
 
@@ -178,7 +186,7 @@ function exportarCSV() {
   ['tipo', 'unidade', 'ano', 'situacao'].forEach(k => { const v = SST.param(k); if (v) $('f-' + k).value = v; });
   if (SST.param('q')) $('f-busca').value = SST.param('q');
 
-  ['f-busca', 'f-tipo', 'f-unidade', 'f-ano', 'f-classif', 'f-situacao'].forEach(id =>
+  ['f-busca', 'f-tipo', 'f-unidade', 'f-ano', 'f-classif', 'f-situacao', 'f-responsavel'].forEach(id =>
     $(id).addEventListener(id === 'f-busca' ? 'input' : 'change', desenhar));
   $('b-csv').onclick = exportarCSV;
   desenhar();

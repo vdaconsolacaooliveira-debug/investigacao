@@ -124,7 +124,7 @@
       ['5pq', 'cincoporques.html', '❓', 'Novo 5 Porquês'],
       ['lista', 'relatorios.html', '📂', 'Relatórios']
     ];
-    if (admin) links.push(['usuarios', 'usuarios.html', '👥', 'Usuários']);
+    if (admin) links.push(['usuarios', 'usuarios.html', '👥', 'Usuários'], ['config', 'configuracoes.html', '⚙️', 'Configurações']);
     el.innerHTML = `
       <a class="marca" href="index.html">
         <img src="img/logo-db.png" alt="DB Agronegócios">
@@ -170,6 +170,34 @@
     const l = await unidades();
     const u = l.find(x => x.sigla === nomeOuSigla || x.nome.toLowerCase() === String(nomeOuSigla).toLowerCase());
     return u ? u.sigla : '';
+  }
+
+  // ── Catálogo do Ishikawa (grupos e itens ativos, em ordem) ────────
+  async function catalogoIshikawa() {
+    const [g, i] = await Promise.all([
+      sb.from('ishikawa_grupos').select('*').eq('ativo', true).order('ordem'),
+      sb.from('ishikawa_itens').select('*').eq('ativo', true).order('ordem')
+    ]);
+    if (g.error) throw g.error;
+    if (i.error) throw i.error;
+    return g.data.map(gr => ({ ...gr, itens: i.data.filter(it => it.grupo_id === gr.id) }));
+  }
+
+  // ── Usuários ativos (para o Administrador escolher o responsável) ─
+  async function usuariosAtivos() {
+    const { data, error } = await sb.from('perfis').select('id,nome,email,papel').eq('situacao', 'ativo').order('nome');
+    if (error) throw error;
+    return data;
+  }
+  // Monta o seletor "Responsável" na barra do formulário (só Administrador)
+  async function seletorResponsavel(perfil, select, valor) {
+    if (perfil.papel !== 'admin') { select.hidden = true; return false; }
+    const lista = await usuariosAtivos();
+    select.innerHTML = lista.map(u =>
+      `<option value="${u.id}">👤 ${esc(u.nome || u.email)}${u.id === perfil.id ? ' (eu)' : ''}</option>`).join('');
+    select.value = valor || perfil.id;
+    select.hidden = false;
+    return true;
   }
 
   // ── Fotos ─────────────────────────────────────────────────────────
@@ -238,6 +266,6 @@
   window.SST = {
     sb, CLASSIF, TIPOS, esc, hojeBR, dataISO, dataBR, dataHoraBR, iniciais, primeiroNome, param,
     traduzErro, toast, sessao, perfilAtual, exigirLogin, sair, barra, unidades, preencherUnidades,
-    siglaDe, comprimirImagem, urlsFotos, lerCampos, escreverCampos, alteracoes
+    siglaDe, catalogoIshikawa, usuariosAtivos, seletorResponsavel, comprimirImagem, urlsFotos, lerCampos, escreverCampos, alteracoes
   };
 })();
