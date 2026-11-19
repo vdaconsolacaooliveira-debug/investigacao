@@ -59,6 +59,8 @@
   .etapa.acoes { background: var(--azul-claro); color: var(--azul); }
   .etapa.encerrado { background: #e6f4e7; color: var(--verde); }
   .etapa.sem_acoes { background: #fff6dc; color: #8a6510; }
+  .etapa.analise { background: #f1f2f4; color: #4b5563; }
+  .no-plano { font-size: 11px; color: var(--cinza); white-space: nowrap; }
 
   .acoes-f { display: flex; gap: 8px; flex-wrap: wrap; }
   .acoes-f select, .acoes-f input { font: inherit; font-size: 12px; padding: 6px 8px; border: 1px solid #cfd5dd; border-radius: 6px; }
@@ -159,7 +161,7 @@
 
   <div class="grade-graf" style="grid-template-columns:1fr 1fr">
     <section class="sst-card bloco" style="margin:0">
-      <div class="cab"><div><h3>Quem está com as ações</h3><p class="sub" style="margin:0">Pelo campo "Quem irá fazer" / "Responsável" de cada ação.</p></div></div>
+      <div class="cab"><div><h3>Quem está com as ações</h3><p class="sub" style="margin:0">Pelo campo "Quem irá fazer" do plano de ação das NIATs.</p></div></div>
       <div class="tabela-wrap" id="t-executor"></div>
     </section>
     <section class="sst-card graf" style="margin:0">
@@ -200,7 +202,7 @@ const $ = id => document.getElementById(id);
 const css = n => getComputedStyle(document.querySelector('.viz-root')).getPropertyValue(n).trim();
 const ORDEM_ST = ['concluida', 'andamento', 'pendente', 'atrasada'];
 const ETAPAS = {
-  investigacao: 'Em investigação', acoes: 'Ações em andamento', sem_acoes: 'Concluído sem plano de ação', encerrado: 'Encerrado'
+  investigacao: 'Em investigação', acoes: 'Ações em andamento', sem_acoes: 'Concluído sem plano de ação', encerrado: 'Encerrado', analise: 'Análise concluída'
 };
 const COR_CLASSIF = { grave: '#B71247', leve: '#E07B00', incidente: '#2e7d32' };
 const MESES = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
@@ -220,16 +222,13 @@ function extrairAcoes(r) {
     out.push({ ...base, chave: a.id || 'i' + i, origem: 'Plano de ação', oque: a.oque, quem: a.quem || '', prazo: a.quando || '',
                status: a.status || 'pendente', concluida_em: a.concluida_em || null });
   });
-  else (d.cadeias || []).forEach((c, ci) => c.forEach((l, li) => {
-    if (!(l.acao || '').trim()) return;
-    out.push({ ...base, chave: l.id || `c${ci}_${li}`, origem: `Cadeia ${String(ci + 1).padStart(2, '0')}`, oque: l.acao, quem: l.resp || '',
-               prazo: l.prazo || '', status: l.status || 'pendente', concluida_em: l.concluida_em || null });
-  }));
+  // As ações do 5 Porquês são passadas para o plano de ação da NIAT: só a NIAT conta
   out.forEach(a => { a.sit = SST.situacaoAcao(a); a.prazoISO = SST.dataISO(a.prazo); });
   return out;
 }
 function etapa(r, acs) {
   if (r.situacao !== 'concluido') return 'investigacao';
+  if (r.tipo === '5pq') return 'analise';
   const validas = acs.filter(a => a.sit !== 'cancelada');
   if (!validas.length) return 'sem_acoes';
   return validas.every(a => a.sit === 'concluida') ? 'encerrado' : 'acoes';
@@ -238,11 +237,11 @@ function etapa(r, acs) {
 async function carregar() {
   const [{ data: rs, error: e1 }, { data: ls, error: e2 }] = await Promise.all([
     sb.from('relatorios').select('id,tipo,numero,unidade,responsavel,classificacao,situacao,data_ocorrencia,niat_id,ano,dados,atualizado_em'),
-    sb.from('lista_relatorios').select('id,unidade_nome,responsavel_nome')
+    sb.from('lista_relatorios').select('id,unidade_nome,responsavel_nome,niat_numero')
   ]);
   if (e1 || e2) throw (e1 || e2);
   const nomes = Object.fromEntries(ls.map(l => [l.id, l]));
-  relatorios = rs.map(r => ({ ...r, unidade_nome: (nomes[r.id] || {}).unidade_nome || r.unidade, responsavel_nome: (nomes[r.id] || {}).responsavel_nome || '—' }));
+  relatorios = rs.map(r => ({ ...r, unidade_nome: (nomes[r.id] || {}).unidade_nome || r.unidade, responsavel_nome: (nomes[r.id] || {}).responsavel_nome || '—', niat_numero: (nomes[r.id] || {}).niat_numero || null }));
   relatorios.forEach(r => { r._acoes = extrairAcoes(r); r._etapa = etapa(r, r._acoes); });
 }
 
@@ -371,14 +370,16 @@ function tabelaTecnicos(rs) {
   rs.forEach(r => (grupos[r.responsavel] = grupos[r.responsavel] || { nome: r.responsavel_nome, rs: [] }).rs.push(r));
   const linhas = Object.values(grupos).map(g => {
     const acs = g.rs.flatMap(r => r._acoes);
-    return { ...g, c: contar(acs), e: Object.fromEntries(Object.keys(ETAPAS).map(k => [k, g.rs.filter(r => r._etapa === k).length])), prox: proximoPrazo(acs) };
+    const niats = g.rs.filter(r => r.tipo === 'niat');
+    return { ...g, c: contar(acs), e: Object.fromEntries(Object.keys(ETAPAS).map(k => [k, niats.filter(r => r._etapa === k).length])),
+             niatInv: niats.filter(r => r._etapa === 'investigacao').length, prox: proximoPrazo(acs) };
   }).sort((a, b) => b.c.atrasada - a.c.atrasada || b.c.abertas - a.c.abertas);
   if (!linhas.length) return '<div class="vazio-p">Nenhum relatório no filtro.</div>';
   return `<table class="tabela"><thead><tr>
-      <th>Técnico</th><th class="num-r">Relatórios</th><th class="num-r">Em investigação</th><th class="num-r">Ações em andamento</th><th class="num-r">Encerrados</th>
+      <th>Técnico</th><th class="num-r">NIATs</th><th class="num-r">5 Porquês</th><th class="num-r">Em investigação</th><th class="num-r">Ações em andamento</th><th class="num-r">Encerrados</th>
       <th class="num-r">Ações abertas</th><th class="num-r">Atrasadas</th><th>Andamento das ações</th><th>Próximo prazo</th></tr></thead><tbody>
     ${linhas.map(l => `<tr>
-      <td><b>${esc(l.nome)}</b></td><td class="num-r">${l.rs.length}</td><td class="num-r">${l.e.investigacao}</td>
+      <td><b>${esc(l.nome)}</b></td><td class="num-r">${l.rs.filter(r => r.tipo === 'niat').length}</td><td class="num-r">${l.rs.filter(r => r.tipo === '5pq').length}</td><td class="num-r">${l.niatInv}</td>
       <td class="num-r">${l.e.acoes}</td><td class="num-r">${l.e.encerrado}</td>
       <td class="num-r">${l.c.abertas}</td><td class="num-r">${l.c.atrasada ? `<b class="atr">${SST.ic('triangle-alert', 13)} ${l.c.atrasada}</b>` : '0'}</td>
       <td>${barraProgresso(l.c)}</td><td>${l.prox}</td></tr>`).join('')}
@@ -400,8 +401,8 @@ function tabelaRelatorios(rs) {
       <td>${SST.dataBR(r.data_ocorrencia) || '—'}</td>
       <td>${r.classificacao ? `<span class="etiqueta ${r.classificacao}">${CLASSIF[r.classificacao].curto}</span>` : '—'}</td>
       <td><span class="etapa ${r._etapa}">${ETAPAS[r._etapa]}</span></td>
-      <td>${barraProgresso(c)}</td>
-      <td class="num-r">${c.atrasada ? `<b class="atr">${SST.ic('triangle-alert', 13)} ${c.atrasada}</b>` : '0'}</td>
+      <td>${r.tipo === '5pq' ? `<span class="no-plano">no plano de ação ${r.niat_numero ? 'da ' + esc(r.niat_numero) : 'da NIAT'}</span>` : barraProgresso(c)}</td>
+      <td class="num-r">${r.tipo === '5pq' ? '—' : c.atrasada ? `<b class="atr">${SST.ic('triangle-alert', 13)} ${c.atrasada}</b>` : '0'}</td>
       <td>${proximoPrazo(r._acoes)}</td></tr>`).join('')}
     </tbody></table>`;
 }
@@ -409,8 +410,8 @@ function tabelaRelatorios(rs) {
 function tabelaExecutores(acs) {
   const g = {};
   acs.forEach(a => {
-    const k = norm(a.quem) || '(sem nome)';
-    (g[k] = g[k] || { nome: a.quem ? a.quem.trim().replace(/\s+/g, ' ') : '(sem nome)', acs: [] }).acs.push(a);
+    const k = norm(a.quem) || '(não informado)';
+    (g[k] = g[k] || { nome: a.quem ? a.quem.trim().replace(/\s+/g, ' ') : '(não informado)', acs: [] }).acs.push(a);
   });
   const l = Object.values(g).map(x => ({ ...x, c: contar(x.acs), prox: proximoPrazo(x.acs) }))
     .sort((a, b) => b.c.atrasada - a.c.atrasada || b.c.abertas - a.c.abertas || a.nome.localeCompare(b.nome));

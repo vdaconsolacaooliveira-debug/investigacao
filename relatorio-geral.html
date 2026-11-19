@@ -50,6 +50,8 @@
   .etapa.acoes { background: var(--azul-claro); color: var(--azul); }
   .etapa.encerrado { background: #e6f4e7; color: var(--verde); }
   .etapa.sem_acoes { background: #fff6dc; color: #8a6510; }
+  .etapa.analise { background: #f1f2f4; color: #4b5563; }
+  .no-plano { padding: 12px 18px; font-size: 12.5px; color: var(--cinza); background: #fafbfc; }
   a.rel { color: var(--azul); font-weight: 700; text-decoration: none; font-family: Consolas, "Courier New", monospace; font-size: 12px; white-space: nowrap; }
 
   .so-impressao { display: none !important; }
@@ -83,7 +85,7 @@
   <div class="sst-titulo sem-impressao">
     <div>
       <h1>Relatório geral das investigações</h1>
-      <p>Todas as investigações e suas ações: de onde cada ação veio, quem gerou e quem precisa executar.</p>
+      <p>Todas as investigações e suas ações: de onde cada ação veio, quem gerou e quem precisa executar. As ações contadas são as do plano de ação das NIATs.</p>
     </div>
     <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
       <div class="modo" role="group" aria-label="Forma de exibir">
@@ -119,7 +121,7 @@
 <script>
 const { sb, esc, toast, traduzErro, CLASSIF, STATUS_ACAO } = SST;
 const $ = id => document.getElementById(id);
-const ETAPAS = { investigacao: 'Em investigação', acoes: 'Ações em andamento', sem_acoes: 'Concluído sem plano de ação', encerrado: 'Encerrado' };
+const ETAPAS = { investigacao: 'Em investigação', acoes: 'Ações em andamento', sem_acoes: 'Concluído sem plano de ação', encerrado: 'Encerrado', analise: 'Análise concluída' };
 const COR = { concluida: '#0ca30c', andamento: '#2a78d6', pendente: '#eda100', atrasada: '#d03b3b', cancelada: '#9aa5b1' };
 const norm = t => String(t || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 let perfil, relatorios = [], modo = 'grupo';
@@ -159,21 +161,14 @@ function montarAcoes(r, hist) {
       out.push({ n: out.length + 1, oque: a.oque, origem: 'Plano de ação', causa, causaRot: c.causa_raiz ? 'Causa raiz' : 'Causa imediata',
         quem: a.quem || '', prazo: a.quando || '', status: a.status || 'pendente', concluida_em: a.concluida_em, ger: gerador(a, a.id) });
     });
-  } else {
-    const problema = (d.cadeias && d.cadeias[0] && d.cadeias[0][0] && d.cadeias[0][0].problema) || '';
-    (d.cadeias || []).forEach((cad, ci) => cad.forEach((l, li) => {
-      if (!(l.acao || '').trim()) return;
-      const pqs = (l.pq || []).filter(x => (x || '').trim());
-      out.push({ n: out.length + 1, oque: l.acao, origem: `Cadeia ${String(ci + 1).padStart(2, '0')}${cad.length > 1 ? `, linha ${li + 1}` : ''}`,
-        causa: pqs.length ? pqs[pqs.length - 1] : problema, causaRot: pqs.length ? `${pqs.length}º porquê` : 'Problema',
-        quem: l.resp || '', prazo: l.prazo || '', status: l.status || 'pendente', concluida_em: l.concluida_em, ger: gerador(l, l.id) });
-    }));
   }
+  // 5 Porquês: as ações são passadas para o plano de ação da NIAT e acompanhadas lá
   out.forEach(a => { a.sit = SST.situacaoAcao(a); a.prazoISO = SST.dataISO(a.prazo); });
   return out;
 }
 function etapa(r) {
   if (r.situacao !== 'concluido') return 'investigacao';
+  if (r.tipo === '5pq') return 'analise';
   const v = r._acoes.filter(a => a.sit !== 'cancelada');
   if (!v.length) return 'sem_acoes';
   return v.every(a => a.sit === 'concluida') ? 'encerrado' : 'acoes';
@@ -255,7 +250,8 @@ function blocoInvestigacao({ r, acs }) {
     ${oque || causa ? `<div class="inv-desc">
       <div><b>${r.tipo === 'niat' ? 'O que aconteceu' : 'Ocorrência (fenômeno)'}</b>${esc(corte(oque)) || '—'}</div>
       <div><b>${r.tipo === 'niat' ? 'Causa raiz' : 'Problema analisado'}</b>${esc(corte(causa)) || '—'}</div></div>` : ''}
-    ${acs.length ? `<div class="tabela-wrap"><table class="tabela acoes-t"><thead><tr>
+    ${r.tipo === '5pq' ? `<div class="no-plano">As ações desta análise são acompanhadas no plano de ação ${r.niat_numero ? `da <b>${esc(r.niat_numero)}</b>` : 'da NIAT de origem'}.</div>`
+    : acs.length ? `<div class="tabela-wrap"><table class="tabela acoes-t"><thead><tr>
         <th style="width:3%">#</th><th style="width:28%">Ação</th><th style="width:22%">De onde veio</th><th>Gerada por</th>
         <th>Quem executa</th><th>Prazo</th><th>Situação</th></tr></thead><tbody>
       ${acs.map(a => { const s = situacao(a); return `<tr>
@@ -289,7 +285,7 @@ function desenhar() {
   const acs = lista.flatMap(x => x.acs);
   const cnt = k => acs.filter(a => a.sit === k).length;
   $('resumo').innerHTML = [
-    [lista.filter(x => x.r.tipo === 'niat').length, 'NIATs'], [lista.filter(x => x.r.tipo === '5pq').length, '5 Porquês'],
+    [lista.filter(x => x.r.tipo === 'niat').length, 'NIATs'], [lista.filter(x => x.r.tipo === '5pq').length, 'Análises 5 Porquês'],
     [acs.length, 'Ações listadas'], [cnt('pendente') + cnt('andamento') + cnt('atrasada'), 'Abertas'],
     [cnt('atrasada'), 'Atrasadas', 'atr'], [cnt('concluida'), 'Concluídas']
   ].map(([v, r, cls]) => `<div class="item ${cls || ''}"><b>${v}</b><span>${r}</span></div>`).join('');
@@ -310,7 +306,8 @@ function exportarCSV() {
   filtrar().forEach(({ r, acs }) => {
     const base = [r.numero, r.tipo === 'niat' ? 'NIAT' : '5 Porquês', r.niat_numero || '', r.unidade_nome, SST.dataBR(r.data_ocorrencia),
       r.classificacao ? CLASSIF[r.classificacao].rotulo : '', ETAPAS[r._etapa], r.responsavel_nome, r.autor];
-    if (!acs.length) linhas.push([...base, '', '(sem ações)', '', '', '', '', '', '', '', '']);
+    if (r.tipo === '5pq') linhas.push([...base, '', `(ações no plano de ação ${r.niat_numero || 'da NIAT'})`, '', '', '', '', '', '', '', '']);
+    else if (!acs.length) linhas.push([...base, '', '(sem ações)', '', '', '', '', '', '', '', '']);
     acs.forEach(a => linhas.push([...base, a.n, a.oque, a.origem, a.causa ? `${a.causaRot}: ${a.causa}` : '',
       a.ger.nome + (a.ger.fonte ? ` (${a.ger.fonte})` : ''), a.ger.quando ? SST.dataBR(String(a.ger.quando).slice(0, 10)) : '',
       a.quem, a.prazoISO ? SST.dataBR(a.prazoISO) : a.prazo, STATUS_ACAO[a.sit].rotulo, a.concluida_em ? SST.dataBR(a.concluida_em) : '']));
