@@ -45,12 +45,6 @@
   .prazo-atr { color: var(--st-atrasada); font-weight: 700; }
   .dias { display: block; font-size: 10px; color: var(--st-atrasada); }
   .sem-acoes { padding: 12px 18px; font-size: 12.5px; color: #8a6510; background: #fffaf0; }
-  .etapa { font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 10px; white-space: nowrap; }
-  .etapa.investigacao { background: #efeafd; color: #4a3aa7; }
-  .etapa.acoes { background: var(--azul-claro); color: var(--azul); }
-  .etapa.encerrado { background: #e6f4e7; color: var(--verde); }
-  .etapa.sem_acoes { background: #fff6dc; color: #8a6510; }
-  .etapa.analise { background: #f1f2f4; color: #4b5563; }
   .no-plano { padding: 12px 18px; font-size: 12.5px; color: var(--cinza); background: #fafbfc; }
   a.rel { color: var(--azul); font-weight: 700; text-decoration: none; font-family: Consolas, "Courier New", monospace; font-size: 12px; white-space: nowrap; }
 
@@ -121,7 +115,7 @@
 <script>
 const { sb, esc, toast, traduzErro, CLASSIF, STATUS_ACAO } = SST;
 const $ = id => document.getElementById(id);
-const ETAPAS = { investigacao: 'Em investigação', acoes: 'Ações em andamento', sem_acoes: 'Concluído sem plano de ação', encerrado: 'Encerrado', analise: 'Análise concluída' };
+const ETAPAS = Object.fromEntries(Object.entries(SST.ETAPAS).map(([k, v]) => [k, v.rotulo]));
 const COR = { concluida: '#0ca30c', andamento: '#2a78d6', pendente: '#eda100', atrasada: '#d03b3b', cancelada: '#9aa5b1' };
 const norm = t => String(t || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
 let perfil, relatorios = [], modo = 'grupo';
@@ -166,18 +160,12 @@ function montarAcoes(r, hist) {
   out.forEach(a => { a.sit = SST.situacaoAcao(a); a.prazoISO = SST.dataISO(a.prazo); });
   return out;
 }
-function etapa(r) {
-  if (r.situacao !== 'concluido') return 'investigacao';
-  if (r.tipo === '5pq') return 'analise';
-  const v = r._acoes.filter(a => a.sit !== 'cancelada');
-  if (!v.length) return 'sem_acoes';
-  return v.every(a => a.sit === 'concluida') ? 'encerrado' : 'acoes';
-}
+function etapa(r) { return SST.ETAPAS[r.situacao] ? r.situacao : 'investigacao'; }
 
 async function carregar() {
   const admin = perfil.papel === 'admin';
   const [rr, ll, aa] = await Promise.all([
-    sb.from('relatorios').select('id,tipo,numero,unidade,responsavel,classificacao,situacao,data_ocorrencia,niat_id,ano,dados'),
+    sb.from('relatorios').select('id,tipo,numero,unidade,responsavel,classificacao,situacao,situacao_desde,situacao_obs,data_ocorrencia,niat_id,ano,dados'),
     sb.from('lista_relatorios').select('id,unidade_nome,responsavel_nome,autor,niat_numero'),
     admin ? sb.from('auditoria').select('registro_id,usuario_nome,quando,mudancas').eq('tabela', 'relatorios').eq('acao', 'alterou').order('quando', { ascending: false }).limit(5000)
           : Promise.resolve({ data: [] })
@@ -241,10 +229,12 @@ function blocoInvestigacao({ r, acs }) {
         <span><b>Criado por</b>${esc(r.autor || '—')}</span>
         ${r.niat_numero ? `<span><b>Relatório pai</b>${esc(r.niat_numero)}</span>` : ''}
         ${r._filho ? `<span><b>Gerou o 5 Porquês</b>${esc(r._filho)}</span>` : ''}
+        ${['investigacao', 'aguardando', 'acoes'].includes(r._etapa) && r.situacao_desde ? `<span><b>Na etapa desde</b>${SST.dataBR(String(r.situacao_desde).slice(0, 10))} (${SST.diasDesde(r.situacao_desde)} dias)</span>` : ''}
+        ${r.situacao_obs ? `<span><b>Motivo</b>${esc(r.situacao_obs)}</span>` : ''}
       </div>
       <div class="tags">
         ${r.classificacao ? `<span class="etiqueta ${r.classificacao}">${CLASSIF[r.classificacao].curto}</span>` : ''}
-        <span class="etapa ${r._etapa}">${ETAPAS[r._etapa]}</span>
+        ${SST.etiquetaEtapa(r._etapa)}
       </div>
     </div>
     ${oque || causa ? `<div class="inv-desc">

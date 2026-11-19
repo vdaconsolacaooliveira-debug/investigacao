@@ -127,7 +127,7 @@
       <a class="sst-card atalho" href="relatorios.html"><span class="ic"><i data-ic="folder-open" data-tam="22"></i></span><div><b>Lista de relatórios</b><span>Pesquisar, abrir e imprimir</span></div></a>
       <a class="sst-card atalho" href="painel.html"><span class="ic"><i data-ic="layout-dashboard" data-tam="22"></i></span><div><b>Painel de acompanhamento</b><span>Ações, prazos e situação por técnico</span></div></a>
       <a class="sst-card atalho" href="relatorio-geral.html"><span class="ic"><i data-ic="file-text" data-tam="22"></i></span><div><b>Relatório geral</b><span>Todas as investigações e suas ações</span></div></a>
-      <a class="sst-card atalho" href="relatorios.html?situacao=rascunho"><span class="ic"><i data-ic="square-pen" data-tam="22"></i></span><div><b>Rascunhos</b><span>Relatórios ainda não concluídos</span></div></a>
+      <a class="sst-card atalho" href="relatorios.html?situacao=investigacao"><span class="ic"><i data-ic="square-pen" data-tam="22"></i></span><div><b>Em investigação</b><span>Relatórios que ainda estão sendo investigados</span></div></a>
     </div>
 
     <div class="secao-rotulo">Últimos relatórios</div>
@@ -239,7 +239,7 @@ async function mostrarMenu(perfil) {
     [n(r => r.tipo === 'niat'), `NIATs em ${ano}`],
     [n(r => r.tipo === '5pq'), `5 Porquês em ${ano}`],
     [n(r => r.classificacao === 'grave'), `Acidentes graves em ${ano}`],
-    [data.filter(r => r.situacao === 'rascunho').length, 'Rascunhos em aberto']
+    [data.filter(r => r.situacao === 'investigacao').length, 'Em investigação']
   ].map(([val, rot]) => `<div class="sst-card numero-card"><div class="v">${val}</div><div class="r">${esc(rot)}</div></div>`).join('');
 
   const rec = data.slice(0, 6);
@@ -255,7 +255,7 @@ async function mostrarMenu(perfil) {
       <td>${esc(r.unidade_nome)}</td>
       <td>${esc(r.envolvido) || '<span class="sub">—</span>'}</td>
       <td>${r.classificacao ? `<span class="etiqueta ${r.classificacao}">${SST.CLASSIF[r.classificacao].curto}</span>` : '—'}</td>
-      <td><span class="etiqueta ${r.situacao}">${r.situacao === 'concluido' ? 'Concluído' : 'Rascunho'}</span></td>
+      <td>${SST.etiquetaEtapa(r.situacao)}</td>
       <td>${SST.dataHoraBR(r.atualizado_em)}</td></tr>`).join('')}
     </tbody></table>`;
   box.querySelectorAll('tr[data-id]').forEach(tr =>

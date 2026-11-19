@@ -54,12 +54,6 @@
 
   .st { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 700; white-space: nowrap; color: var(--text-primary); }
   .st i { width: 9px; height: 9px; border-radius: 50%; display: inline-block; }
-  .etapa { font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 10px; white-space: nowrap; }
-  .etapa.investigacao { background: #efeafd; color: #4a3aa7; }
-  .etapa.acoes { background: var(--azul-claro); color: var(--azul); }
-  .etapa.encerrado { background: #e6f4e7; color: var(--verde); }
-  .etapa.sem_acoes { background: #fff6dc; color: #8a6510; }
-  .etapa.analise { background: #f1f2f4; color: #4b5563; }
   .no-plano { font-size: 11px; color: var(--cinza); white-space: nowrap; }
 
   .acoes-f { display: flex; gap: 8px; flex-wrap: wrap; }
@@ -154,7 +148,7 @@
 
   <section class="sst-card bloco longo">
     <div class="cab"><div><h3>Situação por relatório</h3><p class="sub" style="margin:0">Etapa de cada relatório e quanto do plano de ação já foi feito.</p></div>
-      <div class="acoes-f"><select id="f-etapa"><option value="">Todas as etapas</option><option value="investigacao">Em investigação</option><option value="acoes">Ações em andamento</option><option value="sem_acoes">Concluído sem plano de ação</option><option value="encerrado">Encerrado</option></select></div>
+      <div class="acoes-f"><select id="f-etapa"><option value="">Todas as etapas</option></select></div>
     </div>
     <div class="tabela-wrap" id="t-relatorio"></div>
   </section>
@@ -201,9 +195,7 @@ const { sb, esc, toast, traduzErro, CLASSIF, STATUS_ACAO } = SST;
 const $ = id => document.getElementById(id);
 const css = n => getComputedStyle(document.querySelector('.viz-root')).getPropertyValue(n).trim();
 const ORDEM_ST = ['concluida', 'andamento', 'pendente', 'atrasada'];
-const ETAPAS = {
-  investigacao: 'Em investigação', acoes: 'Ações em andamento', sem_acoes: 'Concluído sem plano de ação', encerrado: 'Encerrado', analise: 'Análise concluída'
-};
+const ETAPAS = Object.fromEntries(Object.entries(SST.ETAPAS).map(([k, v]) => [k, v.rotulo]));
 const COR_CLASSIF = { grave: '#B71247', leve: '#E07B00', incidente: '#2e7d32' };
 const MESES = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
 
@@ -226,23 +218,25 @@ function extrairAcoes(r) {
   out.forEach(a => { a.sit = SST.situacaoAcao(a); a.prazoISO = SST.dataISO(a.prazo); });
   return out;
 }
-function etapa(r, acs) {
-  if (r.situacao !== 'concluido') return 'investigacao';
-  if (r.tipo === '5pq') return 'analise';
-  const validas = acs.filter(a => a.sit !== 'cancelada');
-  if (!validas.length) return 'sem_acoes';
-  return validas.every(a => a.sit === 'concluida') ? 'encerrado' : 'acoes';
+function etapa(r) { return SST.ETAPAS[r.situacao] ? r.situacao : 'investigacao'; }
+// Aviso: marcada como concluída mas ainda com ação aberta
+function alertaEtapa(r, c) { return (r.situacao === 'concluido' && c.abertas) ? `<span class="etapa-desde longo">${c.abertas} ação(ões) ainda aberta(s)</span>` : ''; }
+function desdeTxt(r) {
+  if (!['investigacao', 'aguardando', 'acoes'].includes(r.situacao)) return '';
+  const d = SST.diasDesde(r.situacao_desde);
+  if (d === null) return '';
+  return `<span class="etapa-desde ${r.situacao === 'aguardando' && d > 30 ? 'longo' : ''}" ${r.situacao_obs ? `title="${esc(r.situacao_obs)}"` : ''}>${d === 0 ? 'desde hoje' : d === 1 ? 'há 1 dia' : `há ${d} dias`}${r.situacao_obs ? ' · ' + esc(r.situacao_obs.slice(0, 40)) + (r.situacao_obs.length > 40 ? '…' : '') : ''}</span>`;
 }
 
 async function carregar() {
   const [{ data: rs, error: e1 }, { data: ls, error: e2 }] = await Promise.all([
-    sb.from('relatorios').select('id,tipo,numero,unidade,responsavel,classificacao,situacao,data_ocorrencia,niat_id,ano,dados,atualizado_em'),
+    sb.from('relatorios').select('id,tipo,numero,unidade,responsavel,classificacao,situacao,situacao_desde,situacao_obs,data_ocorrencia,niat_id,ano,dados,atualizado_em'),
     sb.from('lista_relatorios').select('id,unidade_nome,responsavel_nome,niat_numero')
   ]);
   if (e1 || e2) throw (e1 || e2);
   const nomes = Object.fromEntries(ls.map(l => [l.id, l]));
   relatorios = rs.map(r => ({ ...r, unidade_nome: (nomes[r.id] || {}).unidade_nome || r.unidade, responsavel_nome: (nomes[r.id] || {}).responsavel_nome || '—', niat_numero: (nomes[r.id] || {}).niat_numero || null }));
-  relatorios.forEach(r => { r._acoes = extrairAcoes(r); r._etapa = etapa(r, r._acoes); });
+  relatorios.forEach(r => { r._acoes = extrairAcoes(r); r._etapa = etapa(r); });
 }
 
 // ── Filtros ───────────────────────────────────────────────────────
@@ -271,12 +265,13 @@ function contar(acs) {
 function desenharKpis(rs, acs) {
   const c = contar(acs);
   const inv = rs.filter(r => r._etapa === 'investigacao').length;
+  const agu = rs.filter(r => r._etapa === 'aguardando').length;
   const graves = rs.filter(r => r.classificacao === 'grave').length;
   const pl = (n, um, varios) => `${n} ${n === 1 ? um : varios}`;
   const k = (v, r, s = '', cls = '') => `<div class="sst-card kpi ${cls}"><div class="v">${v}</div><div class="r">${r}</div>${s}</div>`;
   $('kpis').innerHTML =
     k(rs.length, 'Relatórios', `<div class="s">${pl(rs.filter(r => r.tipo === 'niat').length, 'NIAT', 'NIATs')} · ${pl(rs.filter(r => r.tipo === '5pq').length, 'análise 5 Porquês', 'análises 5 Porquês')}</div>`) +
-    k(inv, 'Em investigação', '<div class="s">relatórios ainda em rascunho</div>') +
+    k(inv, 'Em investigação', `<div class="s">${agu} aguardando / pausada(s)</div>`) +
     k(graves, 'Acidentes graves', '<div class="s">no filtro atual</div>') +
     k(c.abertas, 'Ações abertas', `<div class="s">${pl(c.pendente, 'pendente', 'pendentes')} · ${c.andamento} em andamento</div>`) +
     k(c.atrasada, SST.ic('triangle-alert', 13) + ' Ações atrasadas', '<div class="s">prazo vencido e não concluídas</div>', c.atrasada ? 'alerta-kpi' : '') +
@@ -376,11 +371,11 @@ function tabelaTecnicos(rs) {
   }).sort((a, b) => b.c.atrasada - a.c.atrasada || b.c.abertas - a.c.abertas);
   if (!linhas.length) return '<div class="vazio-p">Nenhum relatório no filtro.</div>';
   return `<table class="tabela"><thead><tr>
-      <th>Técnico</th><th class="num-r">NIATs</th><th class="num-r">5 Porquês</th><th class="num-r">Em investigação</th><th class="num-r">Ações em andamento</th><th class="num-r">Encerrados</th>
+      <th>Técnico</th><th class="num-r">NIATs</th><th class="num-r">5 Porquês</th><th class="num-r">Em investigação</th><th class="num-r">Aguardando</th><th class="num-r">Ações em execução</th><th class="num-r">Concluídas</th>
       <th class="num-r">Ações abertas</th><th class="num-r">Atrasadas</th><th>Andamento das ações</th><th>Próximo prazo</th></tr></thead><tbody>
     ${linhas.map(l => `<tr>
       <td><b>${esc(l.nome)}</b></td><td class="num-r">${l.rs.filter(r => r.tipo === 'niat').length}</td><td class="num-r">${l.rs.filter(r => r.tipo === '5pq').length}</td><td class="num-r">${l.niatInv}</td>
-      <td class="num-r">${l.e.acoes}</td><td class="num-r">${l.e.encerrado}</td>
+      <td class="num-r">${l.e.aguardando}</td><td class="num-r">${l.e.acoes}</td><td class="num-r">${l.e.concluido}</td>
       <td class="num-r">${l.c.abertas}</td><td class="num-r">${l.c.atrasada ? `<b class="atr">${SST.ic('triangle-alert', 13)} ${l.c.atrasada}</b>` : '0'}</td>
       <td>${barraProgresso(l.c)}</td><td>${l.prox}</td></tr>`).join('')}
     </tbody></table>`;
@@ -388,7 +383,7 @@ function tabelaTecnicos(rs) {
 
 function tabelaRelatorios(rs) {
   const et = $('f-etapa').value;
-  const ordemEt = { investigacao: 1, acoes: 0, sem_acoes: 2, encerrado: 3 };
+  const ordemEt = { acoes: 0, investigacao: 1, aguardando: 2, concluido: 3, cancelado: 4 };
   const l = rs.filter(r => !et || r._etapa === et).map(r => ({ r, c: contar(r._acoes) }))
     .sort((a, b) => b.c.atrasada - a.c.atrasada || ordemEt[a.r._etapa] - ordemEt[b.r._etapa] || String(b.r.data_ocorrencia).localeCompare(String(a.r.data_ocorrencia)));
   if (!l.length) return '<div class="vazio-p">Nenhum relatório nesta etapa.</div>';
@@ -400,7 +395,7 @@ function tabelaRelatorios(rs) {
       <td>${linkRel(r)}</td>${admin ? `<td>${esc(r.responsavel_nome)}</td>` : ''}<td>${esc(r.unidade_nome)}</td>
       <td>${SST.dataBR(r.data_ocorrencia) || '—'}</td>
       <td>${r.classificacao ? `<span class="etiqueta ${r.classificacao}">${CLASSIF[r.classificacao].curto}</span>` : '—'}</td>
-      <td><span class="etapa ${r._etapa}">${ETAPAS[r._etapa]}</span></td>
+      <td>${SST.etiquetaEtapa(r._etapa)}${desdeTxt(r)}${alertaEtapa(r, c)}</td>
       <td>${r.tipo === '5pq' ? `<span class="no-plano">no plano de ação ${r.niat_numero ? 'da ' + esc(r.niat_numero) : 'da NIAT'}</span>` : barraProgresso(c)}</td>
       <td class="num-r">${r.tipo === '5pq' ? '—' : c.atrasada ? `<b class="atr">${SST.ic('triangle-alert', 13)} ${c.atrasada}</b>` : '0'}</td>
       <td>${proximoPrazo(r._acoes)}</td></tr>`).join('')}
@@ -469,7 +464,7 @@ async function mudarStatus(sel) {
     const { error: e2 } = await sb.from('relatorios').update({ dados: d }).eq('id', rid);
     if (e2) throw e2;
     const r = relatorios.find(x => x.id === rid);
-    r.dados = d; r._acoes = extrairAcoes(r); r._etapa = etapa(r, r._acoes);
+    r.dados = d; r._acoes = extrairAcoes(r); r._etapa = etapa(r);
     toast(`Ação marcada como "${STATUS_ACAO[novo].rotulo}".`, 'ok');
     desenhar();
   } catch (e) { toast(traduzErro(e), 'erro', 6000); desenhar(); }
@@ -522,6 +517,8 @@ function desenhar() {
   if ([...$('f-ano').options].some(o => o.value === anoAtual)) $('f-ano').value = anoAtual;
   if (SST.param('tecnico')) $('f-tecnico').value = SST.param('tecnico');
 
+  $('f-etapa').insertAdjacentHTML('beforeend', SST.opcoesEtapa('niat', '').replace(' selected', ''));
+  $('f-etapa').value = '';
   ['f-tecnico', 'f-unidade', 'f-ano', 'f-tipo', 'f-classif', 'f-etapa', 'fa-status'].forEach(id => $(id).addEventListener('change', desenhar));
   $('fa-busca').addEventListener('input', () => { $('t-acoes').innerHTML = tabelaAcoes(filtrados().flatMap(r => r._acoes)); document.querySelectorAll('select.mudar-st').forEach(s => s.onchange = () => mudarStatus(s)); });
   $('b-limpar').onclick = () => { ['f-tecnico', 'f-unidade', 'f-ano', 'f-tipo', 'f-classif'].forEach(id => $(id).value = ''); desenhar(); };

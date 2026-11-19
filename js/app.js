@@ -176,6 +176,27 @@
     return u ? u.sigla : '';
   }
 
+  // ── Etapa do relatório (escolhida pelo técnico) ─────────────────
+  const ETAPAS = {
+    investigacao: { rotulo: 'Em investigação',            curto: 'Em investigação' },
+    aguardando:   { rotulo: 'Aguardando / pausada',       curto: 'Aguardando' },
+    acoes:        { rotulo: 'Plano de ação em execução',  curto: 'Ações em execução' },
+    concluido:    { rotulo: 'Concluída',                  curto: 'Concluída' },
+    cancelado:    { rotulo: 'Cancelada',                  curto: 'Cancelada' }
+  };
+  function opcoesEtapa(tipo, valor) {
+    return Object.keys(ETAPAS).filter(k => !(tipo === '5pq' && k === 'acoes'))
+      .map(k => `<option value="${k}" ${k === (valor || 'investigacao') ? 'selected' : ''}>${ETAPAS[k].rotulo}</option>`).join('');
+  }
+  function etiquetaEtapa(sit) {
+    const e = ETAPAS[sit] || ETAPAS.investigacao;
+    return `<span class="etapa ${ETAPAS[sit] ? sit : 'investigacao'}">${e.curto}</span>`;
+  }
+  function diasDesde(iso) {
+    if (!iso) return null;
+    return Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 864e5));
+  }
+
   // ── Ações (plano de ação da NIAT e ações das cadeias do 5 Porquês) ─
   const STATUS_ACAO = {
     pendente:  { rotulo: 'Pendente',     ic: 'hourglass',      cor: '#eda100' },
@@ -309,6 +330,6 @@
   window.SST = {
     sb, CLASSIF, TIPOS, esc, hojeBR, dataISO, dataBR, dataHoraBR, iniciais, primeiroNome, param,
     traduzErro, toast, ic: (n, t) => window.ic(n, t), sessao, perfilAtual, exigirLogin, sair, barra, unidades, preencherUnidades,
-    siglaDe, ICONES_GRUPO, iconeGrupo, STATUS_ACAO, hojeISO, situacaoAcao, novoId, opcoesStatus, ajustarConclusao, catalogoIshikawa, usuariosAtivos, seletorResponsavel, comprimirImagem, urlsFotos, lerCampos, escreverCampos, alteracoes
+    siglaDe, ETAPAS, opcoesEtapa, etiquetaEtapa, diasDesde, ICONES_GRUPO, iconeGrupo, STATUS_ACAO, hojeISO, situacaoAcao, novoId, opcoesStatus, ajustarConclusao, catalogoIshikawa, usuariosAtivos, seletorResponsavel, comprimirImagem, urlsFotos, lerCampos, escreverCampos, alteracoes
   };
 })();

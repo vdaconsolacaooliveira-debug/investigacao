@@ -291,7 +291,8 @@ async function salvar() {
       data_ocorrencia: SST.dataISO(c.data),
       envolvido: [c.e1_nome, c.e2_nome].filter(Boolean).join(' / '),
       resumo: (c.w_oque || c.descricao || '').slice(0, 300),
-      situacao: document.getElementById('situacao').value
+      situacao: document.getElementById('situacao').value,
+      situacao_obs: document.getElementById('motivo-wrap').hidden ? '' : document.getElementById('situacao-obs').value.trim()
     };
     const numDigitado = document.getElementById('numero').value.trim().toUpperCase();
     const selResp = document.getElementById('responsavel');
@@ -340,7 +341,9 @@ async function carregar(id) {
   escreverIshikawa(d.ishikawa);
   document.getElementById('action-tbody').innerHTML = '';
   (d.acoes && d.acoes.length ? d.acoes : [{}, {}]).forEach(a => addRow(a));
-  document.getElementById('situacao').value = data.situacao;
+  document.getElementById('situacao').innerHTML = SST.opcoesEtapa(data.tipo, data.situacao);
+  document.getElementById('situacao-obs').value = data.situacao_obs || '';
+  mostrarMotivo();
   if (!document.getElementById('responsavel').hidden) document.getElementById('responsavel').value = data.responsavel;
   const caminhos = (d.fotos || []).map(f => f.caminho);
   const urls = await SST.urlsFotos(caminhos).catch(() => ({}));
@@ -417,6 +420,14 @@ async function sugerirNumero() {
   campo.placeholder = data ? `Automático: ${data}` : 'Automático';
 }
 
+function mostrarMotivo() {
+  const v = document.getElementById('situacao').value;
+  const obs = document.getElementById('situacao-obs');
+  document.getElementById('motivo-wrap').hidden = !(v === 'aguardando' || v === 'cancelado');
+  obs.hidden = false;
+  obs.placeholder = v === 'cancelado' ? 'Motivo do cancelamento' : 'Motivo (ex.: aguardando laudo médico)';
+}
+
 // ── Início ────────────────────────────────────────────────────────
 (async function iniciar() {
   try { perfil = await SST.exigirLogin(); } catch (e) { return; }
@@ -434,6 +445,9 @@ async function sugerirNumero() {
   form.addEventListener('change', marcarSujo);
   document.getElementById('situacao').addEventListener('change', marcarSujo);
   window.addEventListener('beforeunload', e => { if (SST.alteracoes.sujo) { e.preventDefault(); e.returnValue = ''; } });
+  document.getElementById('situacao').innerHTML = SST.opcoesEtapa('niat', 'investigacao');
+  document.getElementById('situacao').addEventListener('change', mostrarMotivo);
+  document.getElementById('situacao-obs').addEventListener('input', marcarSujo);
   document.getElementById('b-salvar').onclick = salvar;
   document.getElementById('unidade').addEventListener('change', sugerirNumero);
   document.getElementById('data-ocorrencia').addEventListener('change', sugerirNumero);

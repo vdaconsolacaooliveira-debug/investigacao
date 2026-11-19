@@ -292,3 +292,13 @@ svg.ic { width: 1.15em; height: 1.15em; flex-shrink: 0; vertical-align: -0.2em; 
 table.tabela th svg.ic { vertical-align: -2px; margin-left: 3px; }
 table.tabela .sub svg.ic { vertical-align: -2px; }
 .sst-titulo > div:last-child { align-items: center; }
+
+/* ── ETAPAS DO RELATÓRIO ────────────────────────────────────────── */
+.etapa { display: inline-block; font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 10px; white-space: nowrap; }
+.etapa.investigacao { background: #efeafd; color: #4a3aa7; }
+.etapa.aguardando { background: #fff3d6; color: #8a6510; }
+.etapa.acoes { background: #e4effb; color: #1d5fae; }
+.etapa.concluido { background: #e6f4e7; color: #2e7d32; }
+.etapa.cancelado { background: #f1f2f4; color: #6b7280; text-decoration: line-through; }
+.etapa-desde { display: block; font-size: 10.5px; color: #6b7280; margin-top: 3px; white-space: nowrap; }
+.etapa-desde.longo { color: #b45309; font-weight: 600; }

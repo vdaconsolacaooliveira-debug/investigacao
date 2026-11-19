@@ -33,7 +33,7 @@
       <option value="">Toda classificação</option><option value="grave">Grave</option>
       <option value="leve">Leve</option><option value="incidente">Incidente / Quase acidente</option>
     </select>
-    <select id="f-situacao"><option value="">Toda situação</option><option value="rascunho">Rascunho</option><option value="concluido">Concluído</option></select>
+    <select id="f-situacao"><option value="">Todas as etapas</option></select>
     <select id="f-responsavel" hidden><option value="">Todos os responsáveis</option></select>
   </div>
 
@@ -66,7 +66,7 @@ const colunas = () => [
   ['data_ocorrencia', 'Ocorrência'],
   ['envolvido', 'Envolvido / resumo'],
   ['classificacao', 'Classificação'],
-  ['situacao', 'Situação'],
+  ['situacao', 'Etapa'],
   ...(perfil.papel === 'admin' ? [['responsavel_nome', 'Responsável']] : []),
   ['atualizado_em', 'Atualizado'],
   [null, '']
@@ -113,7 +113,7 @@ function desenhar() {
       <td>${SST.dataBR(r.data_ocorrencia) || '—'}</td>
       <td style="max-width:300px">${esc(r.envolvido) || '—'}${r.resumo ? `<span class="sub">${esc(r.resumo.slice(0, 90))}${r.resumo.length > 90 ? '…' : ''}</span>` : ''}</td>
       <td>${r.classificacao ? `<span class="etiqueta ${r.classificacao}">${CLASSIF[r.classificacao].curto}</span>` : '—'}</td>
-      <td><span class="etiqueta ${r.situacao}">${r.situacao === 'concluido' ? 'Concluído' : 'Rascunho'}</span></td>
+      <td>${SST.etiquetaEtapa(r.situacao)}</td>
       ${admin ? `<td>${esc(r.responsavel_nome || '—')}${r.criado_por !== r.responsavel && r.autor ? `<span class="sub">criado por ${esc(SST.primeiroNome(r.autor))}</span>` : ''}</td>` : ''}
       <td>${SST.dataHoraBR(r.atualizado_em)}</td>
       <td class="acoes">${admin ? `<button class="btn pequeno perigo" data-excluir="${r.id}" title="Excluir" aria-label="Excluir">${SST.ic('trash-2', 14)}</button>` : ''}</td>
@@ -144,7 +144,7 @@ function exportarCSV() {
   const cab = ['Número', 'Tipo', 'NIAT pai', '5 Porquês filho', 'Unidade', 'Data da ocorrência', 'Envolvido', 'Classificação', 'Situação', 'Resumo', 'Responsável', 'Criado por', 'Criado em', 'Atualizado em'];
   const q = v => `"${String(v ?? '').replace(/"/g, '""').replace(/\r?\n/g, ' ')}"`;
   const linhas = l.map(r => [r.numero, TIPOS[r.tipo].curto, r.niat_numero, r._filho, r.unidade_nome, SST.dataBR(r.data_ocorrencia),
-    r.envolvido, r.classificacao ? CLASSIF[r.classificacao].rotulo : '', r.situacao === 'concluido' ? 'Concluído' : 'Rascunho',
+    r.envolvido, r.classificacao ? CLASSIF[r.classificacao].rotulo : '', (SST.ETAPAS[r.situacao] || {}).rotulo || r.situacao,
     r.resumo, r.responsavel_nome, r.autor, SST.dataHoraBR(r.criado_em), SST.dataHoraBR(r.atualizado_em)].map(q).join(';'));
   const blob = new Blob(['﻿' + [cab.map(q).join(';'), ...linhas].join('\r\n')], { type: 'text/csv;charset=utf-8' });
   const a = document.createElement('a');
@@ -159,6 +159,8 @@ function exportarCSV() {
   if (perfil.papel === 'admin') $('sub').textContent = 'Você vê os relatórios de todos os usuários.';
   else $('sub').textContent = 'Aqui aparecem os relatórios que você criou.';
 
+  $('f-situacao').insertAdjacentHTML('beforeend', SST.opcoesEtapa('niat', '').replace(' selected', ''));
+  $('f-situacao').value = '';
   const uns = await SST.unidades();
   $('f-unidade').innerHTML += uns.map(u => `<option value="${esc(u.sigla)}">${esc(u.nome)}</option>`).join('');
 

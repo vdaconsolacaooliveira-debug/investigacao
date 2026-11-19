@@ -306,6 +306,7 @@ async function salvar() {
     envolvido: campos.envolvido || '',
     resumo: ((dados.cadeias[0] && dados.cadeias[0][0] && dados.cadeias[0][0].problema) || campos.fenomeno || '').slice(0, 300),
     situacao: document.getElementById('situacao').value,
+      situacao_obs: document.getElementById('motivo-wrap').hidden ? '' : document.getElementById('situacao-obs').value.trim(),
     niat_id: document.getElementById('niat-vinculo').value || null,
     dados
   };
@@ -352,7 +353,9 @@ async function carregar(id) {
   document.getElementById('cadeias-container').innerHTML = '';
   cadeiaCount = 0;
   (d.cadeias && d.cadeias.length ? d.cadeias : [[{}]]).forEach(linhas => novaCadeia(linhas));
-  document.getElementById('situacao').value = data.situacao;
+  document.getElementById('situacao').innerHTML = SST.opcoesEtapa(data.tipo, data.situacao);
+  document.getElementById('situacao-obs').value = data.situacao_obs || '';
+  mostrarMotivo();
   if (!document.getElementById('responsavel').hidden) document.getElementById('responsavel').value = data.responsavel;
   paiTravado = !!data.niat_id;
   await carregarNiats(data.niat_id);
@@ -370,6 +373,14 @@ async function sugerirNumero() {
   const ano = (SST.dataISO(document.getElementById('data-ocorrencia').value) || SST.hojeISO()).slice(0, 4);
   const { data } = await sb.rpc('proximo_numero', { p_tipo: '5pq', p_unidade: un, p_ano: +ano });
   campo.placeholder = data ? `automático: ${data}` : 'automático';
+}
+
+function mostrarMotivo() {
+  const v = document.getElementById('situacao').value;
+  const obs = document.getElementById('situacao-obs');
+  document.getElementById('motivo-wrap').hidden = !(v === 'aguardando' || v === 'cancelado');
+  obs.hidden = false;
+  obs.placeholder = v === 'cancelado' ? 'Motivo do cancelamento' : 'Motivo (ex.: aguardando laudo médico)';
 }
 
 // ── Início ────────────────────────────────────────────────────────
@@ -390,6 +401,9 @@ async function sugerirNumero() {
     await puxarDaNiat(e.target.value, false);
   });
   window.addEventListener('beforeunload', e => { if (SST.alteracoes.sujo) { e.preventDefault(); e.returnValue = ''; } });
+  document.getElementById('situacao').innerHTML = SST.opcoesEtapa('5pq', 'investigacao');
+  document.getElementById('situacao').addEventListener('change', mostrarMotivo);
+  document.getElementById('situacao-obs').addEventListener('input', marcarSujo);
   document.getElementById('b-salvar').onclick = salvar;
   document.getElementById('unidade').addEventListener('change', sugerirNumero);
   document.getElementById('data-ocorrencia').addEventListener('change', sugerirNumero);

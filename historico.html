@@ -84,7 +84,7 @@ let todos = [], numeros = {};
 
 // ── Nomes amigáveis ──────────────────────────────────────────────
 const ROTULOS = {
-  situacao: 'Situação', classificacao: 'Classificação', data_ocorrencia: 'Data da ocorrência', envolvido: 'Envolvido',
+  situacao: 'Etapa', situacao_obs: 'Motivo da etapa', classificacao: 'Classificação', data_ocorrencia: 'Data da ocorrência', envolvido: 'Envolvido',
   unidade: 'Unidade', niat_id: 'NIAT pai', responsavel: 'Responsável', numero: 'Número',
   ishikawa: 'Diagrama de Ishikawa', acoes: 'Plano de ação', fotos: 'Fotos', cadeias: 'Análise dos 5 Porquês',
   nome: 'Nome', email: 'E-mail', papel: 'Papel', texto: 'Texto', icone: 'Ícone', ativo: 'Ativo', ordem: 'Posição na lista',
@@ -107,7 +107,7 @@ const ROTULOS = {
   [`campos.e${n}_funcao`]: `Envolvido ${n} — função`, [`campos.e${n}_lesao`]: `Envolvido ${n} — houve lesão?`
 }));
 const VALORES = {
-  rascunho: 'Rascunho', concluido: 'Concluído', grave: 'Acidente Grave', leve: 'Acidente Leve', incidente: 'Incidente / Quase Acidente',
+  rascunho: 'Rascunho', investigacao: 'Em investigação', aguardando: 'Aguardando / pausada', acoes: 'Plano de ação em execução', concluido: 'Concluída', cancelado: 'Cancelada', grave: 'Acidente Grave', leve: 'Acidente Leve', incidente: 'Incidente / Quase Acidente',
   admin: 'Administrador', padrao: 'Padrão', pendente: 'Pendente', ativo: 'Ativo', bloqueado: 'Bloqueado', true: 'Sim', false: 'Não'
 };
 const TABELAS = { relatorios: 'Relatório', perfis: 'Usuário', ishikawa_grupos: 'Grupo do Ishikawa', ishikawa_itens: 'Item do Ishikawa', unidades: 'Unidade' };
