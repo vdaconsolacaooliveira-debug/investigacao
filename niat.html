@@ -386,7 +386,7 @@
     <div class="section-title">1. Identificação da Ocorrência</div>
 
     <div class="grid-4" style="margin-bottom:8px;grid-template-columns:repeat(5,1fr)">
-      <div class="field"><label>Nº do Relatório</label><input type="text" class="val" id="numero" readonly placeholder="Gerado ao salvar" style="font-weight:bold;color:#1a3a5c"></div>
+      <div class="field"><label>Nº do Relatório</label><input type="text" class="val" id="numero" maxlength="40" placeholder="Automático" autocomplete="off" title="Pode digitar o número (ex.: NIAT-FSF-028/2026). Se seguir esse padrão, a numeração da unidade continua a partir dele. Deixe em branco para numerar automaticamente." style="font-weight:bold;color:#1a3a5c;text-transform:uppercase"></div>
       <div class="field"><label>Data</label><input type="text" class="val" data-f="data" id="data-ocorrencia" placeholder="DD/MM/AAAA" maxlength="10" inputmode="numeric"></div>
       <div class="field"><label>Hora</label><input type="text" class="val" data-f="hora" placeholder="HH:MM"></div>
       <div class="field"><label>Unidade / Complexo</label>

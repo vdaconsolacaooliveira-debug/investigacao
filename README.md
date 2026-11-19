@@ -19,7 +19,7 @@ Registro de investigações de acidentes (NIAT, FOR 005-001) e análises dos 5 P
 | `configuracoes.html` | Edição da lista do Diagrama de Ishikawa: grupos e itens (só Administrador) |
 
 - **Banco:** Supabase (plano gratuito), projeto `sst-db`, região São Paulo.
-- **Numeração:** `NIAT-FSF-001/2026` e `5PQ-FSF-001/2026` — contagem própria por tipo, unidade e ano. O número é gerado ao salvar e não muda mais.
+- **Numeração:** `NIAT-FSF-001/2026` e `5PQ-FSF-001/2026` — contagem própria por tipo, unidade e ano. Se o campo Nº ficar em branco, o número é gerado ao salvar. O número pode ser digitado ou alterado; se seguir o padrão, a contagem da unidade continua a partir do maior número usado (ex.: lançar o 028 faz o próximo automático ser 029). Números repetidos são bloqueados e toda troca fica no histórico.
 - **NIAT → 5 Porquês:** na NIAT, o botão "Gerar 5 Porquês" cria o relatório filho já ligado à NIAT (pai), com unidade, data, envolvido, descrição e classificação. Cada NIAT tem no máximo um 5 Porquês, e a ligação não pode ser trocada depois.
 - **Lista do Ishikawa:** fica no banco (tabelas `ishikawa_grupos` e `ishikawa_itens`). Só o Administrador altera. Cada relatório guarda o texto do que foi marcado, então mudanças na lista não alteram relatórios já salvos — itens que saíram da lista aparecem em itálico no relatório antigo.
 - **Responsável:** quem vê e edita o relatório. O Administrador pode criar uma NIAT ou um 5 Porquês e escolher o responsável; o 5 Porquês filho sempre acompanha o responsável da NIAT pai.

@@ -66,6 +66,7 @@
       [/Password should be at least/i, 'A senha precisa ter pelo menos 6 caracteres.'],
       [/email rate limit|over_email_send_rate_limit/i, 'O sistema atingiu o limite de e-mails por hora. Tente de novo mais tarde ou avise o Administrador.'],
       [/rate limit|too many/i, 'Muitas tentativas seguidas. Aguarde alguns minutos e tente de novo.'],
+      [/relatorios_numero_key|duplicate key.*numero/i, 'Já existe um relatório com esse número. Use outro número.'],
       [/row-level security|permission denied/i, 'Você não tem permissão para esta ação.'],
       [/Failed to fetch|NetworkError/i, 'Sem conexão com o servidor. Verifique a internet.'],
       [/invalid.*email|Unable to validate email/i, 'E-mail inválido.']

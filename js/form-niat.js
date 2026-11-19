@@ -260,6 +260,7 @@ function mostrarNumero() {
   if (registro.numero) {
     n.textContent = registro.numero; n.className = 'num-doc';
     document.getElementById('numero').value = registro.numero;
+    document.getElementById('numero').placeholder = '';
     document.getElementById('unidade').disabled = true;
     document.getElementById('unidade').title = 'A unidade faz parte do número e não pode ser trocada depois de salvar.';
     atualizarFilho();
@@ -292,11 +293,12 @@ async function salvar() {
       resumo: (c.w_oque || c.descricao || '').slice(0, 300),
       situacao: document.getElementById('situacao').value
     };
+    const numDigitado = document.getElementById('numero').value.trim().toUpperCase();
     const selResp = document.getElementById('responsavel');
     if (!selResp.hidden && !selResp.disabled) linha.responsavel = selResp.value;
     if (!registro.id) {
       const { data, error } = await sb.from('relatorios')
-        .insert({ ...linha, tipo: 'niat', unidade: c.unidade, dados })
+        .insert({ ...linha, tipo: 'niat', unidade: c.unidade, dados, ...(numDigitado ? { numero: numDigitado } : {}) })
         .select('id,numero').single();
       if (error) throw error;
       registro = data;
@@ -305,8 +307,12 @@ async function salvar() {
     }
     await enviarFotos(registro.id);
     const dadosFinais = coletar();
-    const { error } = await sb.from('relatorios').update({ ...linha, dados: dadosFinais }).eq('id', registro.id);
+    const mudouNumero = numDigitado && numDigitado !== registro.numero;
+    const { data: atual, error } = await sb.from('relatorios')
+      .update({ ...linha, dados: dadosFinais, ...(mudouNumero ? { numero: numDigitado } : {}) })
+      .eq('id', registro.id).select('numero').single();
     if (error) throw error;
+    registro.numero = atual.numero; mostrarNumero();
     desenharFotos();
     marcarLimpo('Salvo às ' + new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }));
     const resp = document.getElementById('responsavel');
@@ -400,6 +406,17 @@ async function gerarOuAbrir5pq() {
   }
 }
 
+// Mostra no campo Nº qual será o número automático
+async function sugerirNumero() {
+  const campo = document.getElementById('numero');
+  if (registro.id) return;
+  const un = document.getElementById('unidade').value;
+  if (!un) { campo.placeholder = 'Automático'; return; }
+  const ano = (SST.dataISO(document.getElementById('data-ocorrencia').value) || SST.hojeISO()).slice(0, 4);
+  const { data } = await sb.rpc('proximo_numero', { p_tipo: 'niat', p_unidade: un, p_ano: +ano });
+  campo.placeholder = data ? `Automático: ${data}` : 'Automático';
+}
+
 // ── Início ────────────────────────────────────────────────────────
 (async function iniciar() {
   try { perfil = await SST.exigirLogin(); } catch (e) { return; }
@@ -418,6 +435,8 @@ async function gerarOuAbrir5pq() {
   document.getElementById('situacao').addEventListener('change', marcarSujo);
   window.addEventListener('beforeunload', e => { if (SST.alteracoes.sujo) { e.preventDefault(); e.returnValue = ''; } });
   document.getElementById('b-salvar').onclick = salvar;
+  document.getElementById('unidade').addEventListener('change', sugerirNumero);
+  document.getElementById('data-ocorrencia').addEventListener('change', sugerirNumero);
   document.addEventListener('keydown', e => {
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') { e.preventDefault(); salvar(); }
   });

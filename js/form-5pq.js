@@ -296,7 +296,8 @@ function mostrarNumero() {
   if (!registro.numero) return;
   const n = document.getElementById('num-doc');
   n.textContent = registro.numero; n.className = 'num-doc';
-  document.getElementById('numero-cab').textContent = registro.numero;
+  document.getElementById('numero-cab').value = registro.numero;
+  document.getElementById('numero-cab').placeholder = '';
   const un = document.getElementById('unidade');
   un.disabled = true;
   un.title = 'A unidade faz parte do número e não pode ser trocada depois de salvar.';
@@ -321,9 +322,11 @@ async function salvar() {
   };
   const selResp = document.getElementById('responsavel');
   if (!selResp.hidden && !selResp.disabled) linha.responsavel = selResp.value;
+  const numDigitado = document.getElementById('numero-cab').value.trim().toUpperCase();
   b.disabled = true; b.innerHTML = SST.ic('loader-circle') + '<span>Salvando…</span>';
   try {
     if (!registro.id) {
+      if (numDigitado) linha.numero = numDigitado;
       const { data, error } = await sb.from('relatorios')
         .insert({ ...linha, tipo: '5pq', unidade: campos.unidade }).select('id,numero,unidade,responsavel').single();
       if (error) throw error;
@@ -333,8 +336,10 @@ async function salvar() {
       history.replaceState(null, '', `cincoporques.html?id=${data.id}`);
       mostrarNumero();
     } else {
-      const { error } = await sb.from('relatorios').update(linha).eq('id', registro.id);
+      if (numDigitado && numDigitado !== registro.numero) linha.numero = numDigitado;
+      const { data: atual, error } = await sb.from('relatorios').update(linha).eq('id', registro.id).select('numero').single();
       if (error) throw error;
+      registro.numero = atual.numero; mostrarNumero();
     }
     if (linha.niat_id && !paiTravado) { paiTravado = true; atualizarBotaoNiat(); }
     marcarLimpo('Salvo às ' + new Date().toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }));
@@ -368,6 +373,16 @@ async function carregar(id) {
   return true;
 }
 
+async function sugerirNumero() {
+  const campo = document.getElementById('numero-cab');
+  if (registro.id) return;
+  const un = document.getElementById('unidade').value;
+  if (!un) { campo.placeholder = 'automático'; return; }
+  const ano = (SST.dataISO(document.getElementById('data-ocorrencia').value) || SST.hojeISO()).slice(0, 4);
+  const { data } = await sb.rpc('proximo_numero', { p_tipo: '5pq', p_unidade: un, p_ano: +ano });
+  campo.placeholder = data ? `automático: ${data}` : 'automático';
+}
+
 // ── Início ────────────────────────────────────────────────────────
 (async function iniciar() {
   try { perfil = await SST.exigirLogin(); } catch (e) { return; }
@@ -387,6 +402,9 @@ async function carregar(id) {
   });
   window.addEventListener('beforeunload', e => { if (SST.alteracoes.sujo) { e.preventDefault(); e.returnValue = ''; } });
   document.getElementById('b-salvar').onclick = salvar;
+  document.getElementById('unidade').addEventListener('change', sugerirNumero);
+  document.getElementById('data-ocorrencia').addEventListener('change', sugerirNumero);
+  document.getElementById('numero-cab').addEventListener('input', marcarSujo);
   document.addEventListener('keydown', e => {
     if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') { e.preventDefault(); salvar(); }
   });
