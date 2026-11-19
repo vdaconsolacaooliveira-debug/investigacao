@@ -39,6 +39,11 @@
   .novo-item input:focus { border-color: var(--azul); box-shadow: 0 0 0 3px rgba(26,58,92,.12); }
   .salvo { animation: pisca 1s ease-out; }
   @keyframes pisca { from { background: #e6f4e7; } to { background: transparent; } }
+  .secao-cfg { margin: 28px 0 12px; }
+  .secao-cfg h2 { margin: 0; font-size: 17px; color: var(--azul); }
+  .secao-cfg p { margin: 3px 0 0; font-size: 12.5px; color: var(--cinza); }
+  .grupo-cab .titulo-lista { flex: 1; font-weight: 700; text-transform: uppercase; letter-spacing: .4px; font-size: 13px; padding: 6px 4px; }
+  .grupo-cab .qtd { font-size: 11px; opacity: .7; font-weight: normal; text-transform: none; letter-spacing: 0; margin-left: 6px; }
 </style>
 </head>
 <body class="sst-app">
@@ -47,18 +52,28 @@
 <main class="sst-main">
   <div class="sst-titulo">
     <div>
-      <h1>Diagrama de Ishikawa — lista de causas</h1>
-      <p>Edite os grupos (os "Ms") e os itens que aparecem para marcar na NIAT. Só o Administrador tem acesso a esta tela.</p>
+      <h1>Configurações</h1>
+      <p>Listas de opções que aparecem nos formulários. Só o Administrador tem acesso a esta tela.</p>
     </div>
-    <button class="btn primario" id="b-grupo" type="button"><i data-ic="plus"></i><span>Novo grupo</span></button>
   </div>
 
   <div class="alerta info">
     As alterações valem na hora para os relatórios novos e para os que forem abertos depois.
-    Relatórios já salvos mantêm o que foi marcado: se um item for removido ou renomeado, ele continua aparecendo marcado naquele relatório.
-    Para editar, clique no texto, altere e aperte <b>Enter</b> (ou clique fora).
+    Relatórios já salvos mantêm o que foi escolhido: se uma opção for removida ou renomeada, ela continua aparecendo naquele relatório.
+    Para editar, clique no texto, altere e aperte <b>Enter</b> (ou clique fora). Toda alteração fica no Histórico.
   </div>
 
+  <div class="secao-cfg">
+    <h2>Listas da NIAT</h2>
+    <p>Opções dos campos da seção 1 — Identificação da Ocorrência.</p>
+  </div>
+  <div class="grupos" id="listas"><div class="carregando" style="min-height:120px"><div><div class="giro"></div>Carregando…</div></div></div>
+
+  <div class="secao-cfg" style="display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex-wrap:wrap">
+    <div><h2>Diagrama de Ishikawa — lista de causas</h2>
+    <p>Grupos (os "Ms") e itens que aparecem para marcar na NIAT.</p></div>
+    <button class="btn primario" id="b-grupo" type="button"><i data-ic="plus"></i><span>Novo grupo</span></button>
+  </div>
   <div class="grupos" id="grupos"><div class="carregando" style="min-height:200px"><div><div class="giro"></div>Carregando…</div></div></div>
 </main>
 
@@ -205,11 +220,86 @@ $('b-grupo').onclick = async () => {
   toast('Grupo criado. Agora adicione os itens.', 'ok');
 };
 
+// ── Listas da NIAT ────────────────────────────────────────────────
+let listas = {};
+async function carregarListas() {
+  listas = await SST.opcoesListas();
+  desenharListas();
+}
+function desenharListas() {
+  $('listas').innerHTML = Object.entries(SST.LISTAS).map(([k, rot]) => {
+    const itens = listas[k] || [];
+    return `<section class="sst-card grupo" data-l="${k}">
+      <div class="grupo-cab"><span class="titulo-lista">${esc(rot)}<span class="qtd">${itens.length} opções</span></span></div>
+      <div class="itens">
+        ${itens.map((it, ii) => `
+          <div class="item" data-o="${it.id}">
+            <span class="marca" style="border-radius:50%"></span>
+            <input value="${esc(it.texto)}" title="Texto da opção">
+            <button data-op="sobe" title="Subir" ${ii === 0 ? 'disabled style="opacity:.2"' : ''}>${SST.ic('chevron-up', 14)}</button>
+            <button data-op="desce" title="Descer" ${ii === itens.length - 1 ? 'disabled style="opacity:.2"' : ''}>${SST.ic('chevron-down', 14)}</button>
+            <button data-op="remove" class="rem" title="Remover opção">${SST.ic('x', 14)}</button>
+          </div>`).join('') || '<div class="sub" style="color:var(--cinza);font-size:12px;padding:6px">Nenhuma opção. Adicione abaixo.</div>'}
+      </div>
+      <div class="novo-item">
+        <input placeholder="Nova opção…" data-nova>
+        <button class="btn pequeno" data-op="nova">${SST.ic('plus', 14)}<span>Adicionar</span></button>
+      </div>
+    </section>`;
+  }).join('');
+
+  $('listas').querySelectorAll('.item input').forEach(inp => {
+    const achar = () => listas[inp.closest('[data-l]').dataset.l].find(x => x.id === inp.closest('[data-o]').dataset.o);
+    inp.onkeydown = e => { if (e.key === 'Enter') inp.blur(); if (e.key === 'Escape') { inp.value = achar().texto; inp.blur(); } };
+    inp.onblur = async () => {
+      const it = achar(), v = inp.value.trim();
+      if (v === it.texto) return;
+      if (!v) { inp.value = it.texto; return toast('Para apagar a opção, use o botão de remover (x).', 'erro'); }
+      const { error } = await sb.from('opcoes_lista').update({ texto: v }).eq('id', it.id);
+      if (error) { inp.value = it.texto; return toast(traduzErro(error), 'erro'); }
+      it.texto = v; inp.classList.add('salvo'); setTimeout(() => inp.classList.remove('salvo'), 1000);
+    };
+  });
+  $('listas').querySelectorAll('[data-nova]').forEach(inp => inp.onkeydown = e => {
+    if (e.key === 'Enter') inp.closest('.grupo').querySelector('[data-op=nova]').click();
+  });
+  $('listas').querySelectorAll('[data-op]').forEach(b => b.onclick = () => acaoLista(b));
+}
+async function acaoLista(b) {
+  const k = b.closest('[data-l]').dataset.l;
+  const itens = listas[k];
+  const linha = b.closest('[data-o]');
+  const it = linha && itens.find(x => x.id === linha.dataset.o);
+  try {
+    if (b.dataset.op === 'sobe' || b.dataset.op === 'desce') {
+      const i = itens.indexOf(it), d = b.dataset.op === 'sobe' ? -1 : 1;
+      [itens[i], itens[i + d]] = [itens[i + d], itens[i]];
+      await renumerar('opcoes_lista', itens);
+    } else if (b.dataset.op === 'remove') {
+      if (!confirm(`Remover a opção "${it.texto}" da lista ${SST.LISTAS[k]}?\n\nRelatórios antigos que usaram essa opção continuam com ela.`)) return;
+      const { error } = await sb.from('opcoes_lista').update({ ativo: false }).eq('id', it.id);
+      if (error) throw error;
+      listas[k] = itens.filter(x => x !== it); toast('Opção removida.', 'ok');
+    } else if (b.dataset.op === 'nova') {
+      const inp = b.closest('.grupo').querySelector('[data-nova]'); const texto = inp.value.trim();
+      if (!texto) { inp.focus(); return; }
+      if (itens.some(x => x.texto.toLowerCase() === texto.toLowerCase())) return toast('Essa opção já existe nesta lista.', 'erro');
+      const ordem = (itens.length ? Math.max(...itens.map(x => x.ordem)) : 0) + 10;
+      const { data, error } = await sb.from('opcoes_lista').insert({ lista: k, texto, ordem }).select().single();
+      if (error) throw error;
+      itens.push(data); desenharListas();
+      document.querySelector(`[data-l="${k}"] [data-nova]`).focus();
+      return;
+    }
+    desenharListas();
+  } catch (e) { toast(traduzErro(e), 'erro'); carregarListas(); }
+}
+
 (async function () {
   let eu;
   try { eu = await SST.exigirLogin({ admin: true }); } catch (e) { return; }
   await SST.barra(eu, 'config');
-  try { await carregar(); } catch (e) { toast(traduzErro(e), 'erro'); }
+  try { await Promise.all([carregarListas(), carregar()]); } catch (e) { toast(traduzErro(e), 'erro'); }
 })();
 </script>
 </body>

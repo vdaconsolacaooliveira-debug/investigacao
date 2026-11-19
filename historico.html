@@ -55,6 +55,7 @@
       <option value="relatorios">Relatórios</option>
       <option value="perfis">Usuários</option>
       <option value="ishikawa">Lista do Ishikawa</option>
+      <option value="opcoes">Listas da NIAT</option>
       <option value="unidades">Unidades</option>
     </select>
     <select id="f-acao"><option value="">Toda ação</option><option value="criou">Criou</option><option value="alterou">Alterou</option><option value="excluiu">Excluiu</option></select>
@@ -110,7 +111,7 @@ const VALORES = {
   rascunho: 'Rascunho', investigacao: 'Em investigação', aguardando: 'Aguardando / pausada', acoes: 'Plano de ação em execução', concluido: 'Concluída', cancelado: 'Cancelada', grave: 'Acidente Grave', leve: 'Acidente Leve', incidente: 'Incidente / Quase Acidente',
   admin: 'Administrador', padrao: 'Padrão', pendente: 'Pendente', ativo: 'Ativo', bloqueado: 'Bloqueado', true: 'Sim', false: 'Não'
 };
-const TABELAS = { relatorios: 'Relatório', perfis: 'Usuário', ishikawa_grupos: 'Grupo do Ishikawa', ishikawa_itens: 'Item do Ishikawa', unidades: 'Unidade' };
+const TABELAS = { relatorios: 'Relatório', perfis: 'Usuário', ishikawa_grupos: 'Grupo do Ishikawa', ishikawa_itens: 'Item do Ishikawa', unidades: 'Unidade', opcoes_lista: 'Lista da NIAT' };
 
 function valor(v, campo) {
   if (v === null || v === undefined || v === '') return '<i style="color:#9aa5b1">(vazio)</i>';

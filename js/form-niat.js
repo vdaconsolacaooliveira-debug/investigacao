@@ -336,6 +336,10 @@ async function carregar(id) {
   const d = data.dados || {};
   const campos = { ...(d.campos || {}), unidade: data.unidade };
   carregandoForm = true;
+  Object.keys(SST.LISTAS).forEach(k => {
+    const sel = document.querySelector(`#form select[data-f="${k}"]`);
+    if (sel) SST.garantirOpcao(sel, campos[k]);
+  });
   SST.escreverCampos(document.getElementById('form'), campos);
   setSeverity(campos.classificacao || data.classificacao || 'grave');
   escreverIshikawa(d.ishikawa);
@@ -428,12 +432,27 @@ function mostrarMotivo() {
   obs.placeholder = v === 'cancelado' ? 'Motivo do cancelamento' : 'Motivo (ex.: aguardando laudo médico)';
 }
 
+// Listas de opções (Categoria, Parte do corpo, Tipo de lesão, Tipo de contato) vêm do banco
+async function preencherListas() {
+  let listas;
+  try { listas = await SST.opcoesListas(); } catch (e) { return toast(traduzErro(e), 'erro'); }
+  Object.entries(listas).forEach(([k, itens]) => {
+    const sel = document.querySelector(`#form select[data-f="${k}"]`);
+    if (!sel || !itens.length) return;
+    const atual = sel.value;
+    sel.innerHTML = (k === 'categoria' ? '' : '<option></option>') +
+      itens.map(o => `<option>${esc(o.texto)}</option>`).join('');
+    if (atual && [...sel.options].some(o => o.value === atual)) sel.value = atual;
+  });
+}
+
 // ── Início ────────────────────────────────────────────────────────
 (async function iniciar() {
   try { perfil = await SST.exigirLogin(); } catch (e) { return; }
   await SST.barra(perfil, 'niat');
   await SST.preencherUnidades(document.getElementById('unidade'));
   catalogo = await SST.catalogoIshikawa().catch(e => { toast(traduzErro(e), 'erro'); return []; });
+  await preencherListas();
   desenharIshikawa();
   const admin = await SST.seletorResponsavel(perfil, document.getElementById('responsavel'));
   document.getElementById('ishi-editar').hidden = !admin;

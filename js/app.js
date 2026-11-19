@@ -247,6 +247,28 @@
     return (g && GRUPO_PADRAO[g.chave]) || 'tag';
   }
 
+  // ── Listas de opções da NIAT (editáveis pelo Administrador) ──────
+  const LISTAS = {
+    categoria:    'Categoria',
+    parte_corpo:  'Parte do corpo atingida',
+    tipo_lesao:   'Tipo de lesão',
+    tipo_contato: 'Tipo de contato'
+  };
+  async function opcoesListas() {
+    const { data, error } = await sb.from('opcoes_lista').select('*').eq('ativo', true).order('ordem');
+    if (error) throw error;
+    const m = Object.fromEntries(Object.keys(LISTAS).map(k => [k, []]));
+    data.forEach(o => (m[o.lista] = m[o.lista] || []).push(o));
+    return m;
+  }
+  // Garante que um valor já gravado continue aparecendo, mesmo que tenha saído da lista
+  function garantirOpcao(select, valor) {
+    if (!valor || [...select.options].some(o => o.value === valor)) return;
+    const o = document.createElement('option');
+    o.value = valor; o.textContent = valor; o.title = 'Opção que não está mais na lista atual (mantida neste relatório)';
+    select.appendChild(o);
+  }
+
   // ── Usuários ativos (para o Administrador escolher o responsável) ─
   async function usuariosAtivos() {
     const { data, error } = await sb.from('perfis').select('id,nome,email,papel').eq('situacao', 'ativo').order('nome');
@@ -330,6 +352,6 @@
   window.SST = {
     sb, CLASSIF, TIPOS, esc, hojeBR, dataISO, dataBR, dataHoraBR, iniciais, primeiroNome, param,
     traduzErro, toast, ic: (n, t) => window.ic(n, t), sessao, perfilAtual, exigirLogin, sair, barra, unidades, preencherUnidades,
-    siglaDe, ETAPAS, opcoesEtapa, etiquetaEtapa, diasDesde, ICONES_GRUPO, iconeGrupo, STATUS_ACAO, hojeISO, situacaoAcao, novoId, opcoesStatus, ajustarConclusao, catalogoIshikawa, usuariosAtivos, seletorResponsavel, comprimirImagem, urlsFotos, lerCampos, escreverCampos, alteracoes
+    siglaDe, LISTAS, opcoesListas, garantirOpcao, ETAPAS, opcoesEtapa, etiquetaEtapa, diasDesde, ICONES_GRUPO, iconeGrupo, STATUS_ACAO, hojeISO, situacaoAcao, novoId, opcoesStatus, ajustarConclusao, catalogoIshikawa, usuariosAtivos, seletorResponsavel, comprimirImagem, urlsFotos, lerCampos, escreverCampos, alteracoes
   };
 })();

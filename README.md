@@ -16,7 +16,7 @@ Registro de investigações de acidentes (NIAT, FOR 005-001) e análises dos 5 P
 | `relatorio-geral.html` | Relatório geral das investigações: cada investigação com suas ações — de onde veio, quem gerou, quem executa, prazo e situação (tela, PDF e CSV) |
 | `usuarios.html` | Aprovação e gestão de usuários (só Administrador) |
 | `historico.html` | Histórico de alterações: quem alterou o quê e quando (só Administrador) |
-| `configuracoes.html` | Edição da lista do Diagrama de Ishikawa: grupos e itens (só Administrador) |
+| `configuracoes.html` | Edição das listas da NIAT (Categoria, Parte do corpo, Tipo de lesão, Tipo de contato) e da lista do Diagrama de Ishikawa (só Administrador) |
 
 - **Banco:** Supabase (plano gratuito), projeto `sst-db`, região São Paulo.
 - **Numeração:** `NIAT-FSF-001/2026` e `5PQ-FSF-001/2026` — contagem própria por tipo, unidade e ano. Se o campo Nº ficar em branco, o número é gerado ao salvar. O número pode ser digitado ou alterado; se seguir o padrão, a contagem da unidade continua a partir do maior número usado (ex.: lançar o 028 faz o próximo automático ser 029). Números repetidos são bloqueados e toda troca fica no histórico.
